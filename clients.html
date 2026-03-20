@@ -695,6 +695,9 @@
 
         document.getElementById('btnScan').addEventListener('click', async function() {
             if (!activeClientId) return;
+            const scanBtn = this;
+            scanBtn.disabled = true;
+            scanBtn.textContent = 'Scan läuft...';
 
             // Get client marketplace
             const { data: clientData } = await sb
@@ -865,6 +868,10 @@
                 msg += ' ' + errorCount + ' Fehler.';
             }
             showToast(msg);
+
+            // Re-enable scan button
+            scanBtn.disabled = false;
+            scanBtn.textContent = 'Scan starten';
 
             // Reload ASIN table
             loadAsins();
