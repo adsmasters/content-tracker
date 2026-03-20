@@ -903,7 +903,7 @@
 
             let html = '';
             products.forEach(p => {
-                const title = p.title || '<span class="text-muted">Noch nicht gescannt</span>';
+                const title = p.title || '<span class="text-muted">Scan ausstehend</span>';
                 const status = p.status || 'active';
                 const badgeClass = status === 'active' ? 'active' : 'paused';
                 const badgeLabel = status === 'active' ? 'Aktiv' : 'Pausiert';
@@ -912,7 +912,7 @@
 
                 html += '<tr>' +
                     '<td><a href="product.html?id=' + p.id + '" style="color:#3551FF;font-weight:700;text-decoration:none;">' + escHtml(p.asin) + '</a></td>' +
-                    '<td>' + (p.title ? '<a href="product.html?id=' + p.id + '" style="color:#e6edf3;text-decoration:none;">' + escHtml(p.title) + '</a>' : '<span class="text-muted">Noch nicht gescannt</span>') + '</td>' +
+                    '<td>' + (p.title ? '<a href="product.html?id=' + p.id + '" style="color:#e6edf3;text-decoration:none;">' + escHtml(p.title) + '</a>' : '<span class="text-muted">Scan ausstehend</span>') + '</td>' +
                     '<td><span class="status-badge ' + badgeClass + '">' + badgeLabel + '</span></td>' +
                     '<td>' + lastScan + '</td>' +
                     '<td class="actions-cell">' +
