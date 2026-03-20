@@ -997,9 +997,26 @@
                 return;
             }
 
-            const rows = lines.map(asin => ({
+            // Deduplicate within input
+            const uniqueAsins = [...new Set(lines.map(a => a.toUpperCase()))];
+
+            // Filter out ASINs that already exist for this client
+            const { data: existing } = await sb.from('ct_products')
+                .select('asin')
+                .eq('client_id', activeClientId);
+            const existingSet = new Set((existing || []).map(p => p.asin));
+            const newAsins = uniqueAsins.filter(a => !existingSet.has(a));
+            const skipped = uniqueAsins.length - newAsins.length;
+
+            if (newAsins.length === 0) {
+                errEl.textContent = 'Alle ASINs sind bereits vorhanden.';
+                errEl.style.display = 'block';
+                return;
+            }
+
+            const rows = newAsins.map(asin => ({
                 client_id: activeClientId,
-                asin: asin.toUpperCase(),
+                asin: asin,
                 status: 'active'
             }));
 
@@ -1011,6 +1028,9 @@
             }
 
             document.getElementById('modalAsins').classList.remove('open');
+            if (skipped > 0) {
+                showToast(newAsins.length + ' ASINs hinzugefügt, ' + skipped + ' Duplikate übersprungen.');
+            }
             loadAsins();
         });
 
