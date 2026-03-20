@@ -266,7 +266,7 @@
             </select>
         </div>
         <div style="display:flex;gap:8px;">
-            <button id="btnExportCsv" style="background:#21262d;border:1px solid #30363d;color:#e6edf3;padding:8px 18px;border-radius:6px;cursor:pointer;font-size:13px;font-weight:600;white-space:nowrap;">CSV Export</button>
+            <button id="btnExportCsv" style="background:#21262d;border:1px solid #30363d;color:#e6edf3;padding:8px 18px;border-radius:6px;cursor:pointer;font-size:13px;font-weight:600;white-space:nowrap;">Änderungen exportieren (CSV)</button>
             <button id="btnScanAll" style="background:#3551FF;color:#fff;border:none;padding:8px 18px;border-radius:6px;cursor:pointer;font-size:13px;font-weight:600;white-space:nowrap;">Alle Kunden scannen</button>
         </div>
     </div>
@@ -647,7 +647,9 @@
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = 'content-tracker-export-' + new Date().toISOString().slice(0, 10) + '.csv';
+        const filterClientId = document.getElementById('filterClient').value;
+        const clientSuffix = filterClientId && clientsMap[filterClientId] ? '-' + clientsMap[filterClientId].name.toLowerCase().replace(/\s+/g, '-') : '-alle-kunden';
+        a.download = 'aenderungen' + clientSuffix + '-' + new Date().toISOString().slice(0, 10) + '.csv';
         a.click();
         URL.revokeObjectURL(url);
     });
