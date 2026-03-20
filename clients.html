@@ -854,7 +854,7 @@
 
                 // Rate limit delay (skip after last item)
                 if (i < total - 1 && !scanCancelled) {
-                    await new Promise(resolve => setTimeout(resolve, 500));
+                    await new Promise(resolve => setTimeout(resolve, 1500));
                 }
             }
 

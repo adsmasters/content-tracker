@@ -598,7 +598,7 @@
 
                 await sb.from('ct_products').update({ title, image_url: (d.product_photos || [])[0] || null, last_scanned_at: new Date().toISOString() }).eq('id', product.id);
                 scanned++;
-                await new Promise(r => setTimeout(r, 500));
+                await new Promise(r => setTimeout(r, 1500));
             } catch (e) { errors++; scanned++; }
         }
 
