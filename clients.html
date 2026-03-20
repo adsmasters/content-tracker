@@ -471,8 +471,25 @@
     <div class="modal-overlay" id="modalAsins">
         <div class="modal">
             <h3>ASINs hinzufügen</h3>
-            <label for="asinInput">ASINs (eine pro Zeile)</label>
-            <textarea id="asinInput" placeholder="B08N5WRWNW&#10;B09V3KXJPB&#10;B07XJ8C8F5"></textarea>
+            <div style="display:flex;gap:4px;margin-bottom:12px;">
+                <button class="btn-tab active" id="tabManual" style="flex:1;padding:8px;border:1px solid #30363d;background:#21262d;color:#e6edf3;border-radius:6px;cursor:pointer;font-size:13px;">Manuell</button>
+                <button class="btn-tab" id="tabCsv" style="flex:1;padding:8px;border:1px solid #30363d;background:transparent;color:#8b949e;border-radius:6px;cursor:pointer;font-size:13px;">CSV Upload</button>
+            </div>
+            <div id="manualTab">
+                <label for="asinInput">ASINs (eine pro Zeile)</label>
+                <textarea id="asinInput" placeholder="B08N5WRWNW&#10;B09V3KXJPB&#10;B07XJ8C8F5"></textarea>
+            </div>
+            <div id="csvTab" style="display:none;">
+                <label>CSV-Datei mit ASIN-Spalte hochladen</label>
+                <div style="border:2px dashed #30363d;border-radius:8px;padding:24px;text-align:center;cursor:pointer;margin-top:8px;" id="csvDropZone">
+                    <div style="color:#8b949e;font-size:13px;">CSV hierher ziehen oder klicken</div>
+                    <input type="file" accept=".csv" id="csvFileInput" style="display:none;">
+                </div>
+                <div id="csvPreview" style="display:none;margin-top:12px;">
+                    <span style="color:#3fb950;font-size:13px;" id="csvCount"></span>
+                    <pre id="csvPreviewText" style="background:#0d1117;border:1px solid #30363d;border-radius:6px;padding:8px;margin-top:8px;font-size:12px;color:#8b949e;max-height:150px;overflow-y:auto;"></pre>
+                </div>
+            </div>
             <div class="modal-error" id="asinError"></div>
             <div class="modal-actions">
                 <button class="btn-cancel" id="btnCancelAsins">Abbrechen</button>
@@ -886,10 +903,72 @@
             document.getElementById('asinsBody').innerHTML = html;
         }
 
+        // CSV tab switching and parsing
+        let csvAsins = [];
+        const tabManual = document.getElementById('tabManual');
+        const tabCsv = document.getElementById('tabCsv');
+        const manualTab = document.getElementById('manualTab');
+        const csvTab = document.getElementById('csvTab');
+        const csvDropZone = document.getElementById('csvDropZone');
+        const csvFileInput = document.getElementById('csvFileInput');
+
+        tabManual.addEventListener('click', function() {
+            manualTab.style.display = ''; csvTab.style.display = 'none';
+            tabManual.style.background = '#21262d'; tabManual.style.color = '#e6edf3';
+            tabCsv.style.background = 'transparent'; tabCsv.style.color = '#8b949e';
+            csvAsins = [];
+        });
+        tabCsv.addEventListener('click', function() {
+            manualTab.style.display = 'none'; csvTab.style.display = '';
+            tabCsv.style.background = '#21262d'; tabCsv.style.color = '#e6edf3';
+            tabManual.style.background = 'transparent'; tabManual.style.color = '#8b949e';
+        });
+
+        csvDropZone.addEventListener('click', () => csvFileInput.click());
+        csvDropZone.addEventListener('dragover', e => { e.preventDefault(); csvDropZone.style.borderColor = '#3551FF'; });
+        csvDropZone.addEventListener('dragleave', () => { csvDropZone.style.borderColor = '#30363d'; });
+        csvDropZone.addEventListener('drop', e => {
+            e.preventDefault(); csvDropZone.style.borderColor = '#30363d';
+            if (e.dataTransfer.files.length) parseCsvFile(e.dataTransfer.files[0]);
+        });
+        csvFileInput.addEventListener('change', () => { if (csvFileInput.files.length) parseCsvFile(csvFileInput.files[0]); });
+
+        function parseCsvFile(file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const text = e.target.result;
+                const asinRegex = /\b[A-Z0-9]{10}\b/g;
+                const found = new Set();
+                // Extract all 10-char alphanumeric strings that look like ASINs
+                const matches = text.toUpperCase().match(asinRegex) || [];
+                matches.forEach(m => {
+                    // Filter out obvious non-ASINs (all digits = likely numbers, not ASINs starting with B0)
+                    if (/[A-Z]/.test(m)) found.add(m);
+                });
+                csvAsins = [...found];
+                const preview = document.getElementById('csvPreview');
+                const countEl = document.getElementById('csvCount');
+                const previewText = document.getElementById('csvPreviewText');
+                if (csvAsins.length > 0) {
+                    preview.style.display = '';
+                    countEl.textContent = csvAsins.length + ' ASINs erkannt';
+                    previewText.textContent = csvAsins.slice(0, 20).join('\n') + (csvAsins.length > 20 ? '\n...' : '');
+                } else {
+                    preview.style.display = '';
+                    countEl.textContent = 'Keine ASINs gefunden';
+                    previewText.textContent = '';
+                }
+            };
+            reader.readAsText(file);
+        }
+
         // Add ASINs Modal
         document.getElementById('btnAddAsins').addEventListener('click', function() {
             document.getElementById('asinInput').value = '';
             document.getElementById('asinError').style.display = 'none';
+            document.getElementById('csvPreview').style.display = 'none';
+            csvAsins = [];
+            csvFileInput.value = '';
             document.getElementById('modalAsins').classList.add('open');
         });
 
@@ -898,7 +977,8 @@
         });
 
         document.getElementById('btnSaveAsins').addEventListener('click', async function() {
-            const raw = document.getElementById('asinInput').value.trim();
+            const isCsvMode = csvTab.style.display !== 'none';
+            const raw = isCsvMode ? csvAsins.join('\n') : document.getElementById('asinInput').value.trim();
             const errEl = document.getElementById('asinError');
 
             if (!raw) {
