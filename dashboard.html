@@ -265,7 +265,10 @@
                 <option value="">Alles</option>
             </select>
         </div>
-        <button id="btnScanAll" style="background:#3551FF;color:#fff;border:none;padding:8px 18px;border-radius:6px;cursor:pointer;font-size:13px;font-weight:600;white-space:nowrap;">Alle Kunden scannen</button>
+        <div style="display:flex;gap:8px;">
+            <button id="btnExportCsv" style="background:#21262d;border:1px solid #30363d;color:#e6edf3;padding:8px 18px;border-radius:6px;cursor:pointer;font-size:13px;font-weight:600;white-space:nowrap;">CSV Export</button>
+            <button id="btnScanAll" style="background:#3551FF;color:#fff;border:none;padding:8px 18px;border-radius:6px;cursor:pointer;font-size:13px;font-weight:600;white-space:nowrap;">Alle Kunden scannen</button>
+        </div>
     </div>
 
     <!-- Scan Progress -->
@@ -376,7 +379,7 @@
         }
 
         // Load products with client_id
-        const { data: products } = await sb.from('ct_products').select('id, asin, title, image_url, client_id, is_active, last_scanned_at');
+        const { data: products } = await sb.from('ct_products').select('id, asin, title, image_url, client_id, status, last_scanned_at');
         if (products) {
             products.forEach(p => { productsMap[p.id] = p; });
         }
@@ -390,7 +393,7 @@
 
     function updateStats(products) {
         // Active products count
-        const activeCount = products.filter(p => p.is_active !== false).length;
+        const activeCount = products.filter(p => p.status === 'active').length;
         document.getElementById('statProducts').textContent = activeCount;
 
         // Changes in last 7 days
@@ -610,6 +613,44 @@
     });
 
     document.getElementById('btnCancelScan').addEventListener('click', () => { scanCancelled = true; });
+
+    // CSV Export
+    document.getElementById('btnExportCsv').addEventListener('click', function() {
+        if (!allChanges || allChanges.length === 0) {
+            alert('Keine Änderungen zum Exportieren.');
+            return;
+        }
+
+        const fieldLabels = { title: 'Titel', bullets: 'Bullet Points', images: 'Bilder', a_plus: 'A+ Content' };
+        const rows = [['Datum', 'Kunde', 'ASIN', 'Produkt', 'Feld', 'Vorher', 'Nachher']];
+
+        allChanges.forEach(change => {
+            const product = productsMap[change.product_id] || {};
+            const client = clientsMap[product.client_id] || {};
+            const date = new Date(change.detected_at).toLocaleString('de-DE');
+            const field = fieldLabels[change.field] || change.field;
+
+            // Clean values for CSV (remove newlines, limit length)
+            let oldVal = (change.old_value || '').replace(/[\r\n]+/g, ' ').substring(0, 500);
+            let newVal = (change.new_value || '').replace(/[\r\n]+/g, ' ').substring(0, 500);
+
+            rows.push([date, client.name || '', product.asin || '', product.title || '', field, oldVal, newVal]);
+        });
+
+        // Build CSV with proper escaping
+        const csv = rows.map(row =>
+            row.map(cell => '"' + String(cell).replace(/"/g, '""') + '"').join(';')
+        ).join('\n');
+
+        // BOM for Excel UTF-8 support
+        const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'content-tracker-export-' + new Date().toISOString().slice(0, 10) + '.csv';
+        a.click();
+        URL.revokeObjectURL(url);
+    });
 
     // Init
     loadData();
