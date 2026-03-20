@@ -285,6 +285,91 @@
             display: flex;
             gap: 6px;
         }
+
+        /* Scan Progress Overlay */
+        .scan-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.75);
+            z-index: 300;
+            align-items: center;
+            justify-content: center;
+        }
+        .scan-overlay.open { display: flex; }
+        .scan-card {
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 12px;
+            padding: 32px 40px;
+            width: 100%;
+            max-width: 480px;
+            text-align: center;
+        }
+        .scan-card h3 {
+            font-size: 18px;
+            font-weight: 700;
+            margin-bottom: 20px;
+        }
+        .scan-progress-bar {
+            width: 100%;
+            height: 8px;
+            background: #30363d;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-bottom: 16px;
+        }
+        .scan-progress-fill {
+            height: 100%;
+            background: #3551FF;
+            border-radius: 4px;
+            transition: width 0.3s ease;
+            width: 0%;
+        }
+        .scan-status {
+            font-size: 14px;
+            color: #8b949e;
+            margin-bottom: 6px;
+        }
+        .scan-product-title {
+            font-size: 13px;
+            color: #6e7681;
+            margin-bottom: 20px;
+            min-height: 18px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .btn-cancel-scan {
+            padding: 8px 20px;
+            background: transparent;
+            border: 1px solid #30363d;
+            color: #8b949e;
+            border-radius: 6px;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .btn-cancel-scan:hover { color: #f85149; border-color: #f85149; }
+
+        /* Toast */
+        .toast {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 8px;
+            padding: 14px 22px;
+            font-size: 14px;
+            color: #e6edf3;
+            z-index: 400;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+            transform: translateY(100px);
+            opacity: 0;
+            transition: all 0.3s ease;
+        }
+        .toast.show { transform: translateY(0); opacity: 1; }
     </style>
 </head>
 <body>
@@ -395,6 +480,22 @@
             </div>
         </div>
     </div>
+
+    <!-- Scan Progress Overlay -->
+    <div class="scan-overlay" id="scanOverlay">
+        <div class="scan-card">
+            <h3>Scan läuft...</h3>
+            <div class="scan-progress-bar">
+                <div class="scan-progress-fill" id="scanProgressFill"></div>
+            </div>
+            <div class="scan-status" id="scanStatus">Vorbereitung...</div>
+            <div class="scan-product-title" id="scanProductTitle"></div>
+            <button class="btn-cancel-scan" id="btnCancelScan">Abbrechen</button>
+        </div>
+    </div>
+
+    <!-- Toast -->
+    <div class="toast" id="toast"></div>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
     <script>
@@ -564,8 +665,178 @@
             loadClients();
         });
 
-        document.getElementById('btnScan').addEventListener('click', function() {
-            alert('Scan wird in Phase 2 implementiert');
+        let scanCancelled = false;
+
+        document.getElementById('btnCancelScan').addEventListener('click', function() {
+            scanCancelled = true;
+        });
+
+        document.getElementById('btnScan').addEventListener('click', async function() {
+            if (!activeClientId) return;
+
+            // Get client marketplace
+            const { data: clientData } = await sb
+                .from('ct_clients')
+                .select('marketplace')
+                .eq('id', activeClientId)
+                .single();
+
+            if (!clientData) {
+                alert('Kunde nicht gefunden.');
+                return;
+            }
+
+            // Map marketplace to RapidAPI country code
+            const marketplaceMap = { DE: 'DE', US: 'US', UK: 'GB', FR: 'FR', IT: 'IT', ES: 'ES' };
+            const country = marketplaceMap[clientData.marketplace] || clientData.marketplace;
+
+            // Get active products
+            const { data: products } = await sb
+                .from('ct_products')
+                .select('*')
+                .eq('client_id', activeClientId)
+                .eq('status', 'active');
+
+            if (!products || products.length === 0) {
+                alert('Keine aktiven ASINs vorhanden.');
+                return;
+            }
+
+            // Show progress overlay
+            scanCancelled = false;
+            const overlay = document.getElementById('scanOverlay');
+            const progressFill = document.getElementById('scanProgressFill');
+            const statusEl = document.getElementById('scanStatus');
+            const titleEl = document.getElementById('scanProductTitle');
+            progressFill.style.width = '0%';
+            statusEl.textContent = 'Vorbereitung...';
+            titleEl.textContent = '';
+            overlay.classList.add('open');
+
+            let changesCount = 0;
+            let errorCount = 0;
+            const total = products.length;
+
+            for (let i = 0; i < total; i++) {
+                if (scanCancelled) break;
+
+                const product = products[i];
+                const progress = Math.round(((i + 1) / total) * 100);
+                statusEl.textContent = 'ASIN ' + (i + 1) + '/' + total + ' — ' + product.asin;
+                titleEl.textContent = product.title || '';
+                progressFill.style.width = progress + '%';
+
+                try {
+                    // Call RapidAPI
+                    const response = await fetch(
+                        'https://real-time-amazon-data.p.rapidapi.com/product-details?asin=' + encodeURIComponent(product.asin) + '&country=' + encodeURIComponent(country),
+                        {
+                            method: 'GET',
+                            headers: {
+                                'x-rapidapi-host': 'real-time-amazon-data.p.rapidapi.com',
+                                'x-rapidapi-key': 'f8efc09e81msh6c57af2fcb726adp116390jsne4a9ac230e46'
+                            }
+                        }
+                    );
+
+                    if (!response.ok) {
+                        throw new Error('API HTTP ' + response.status);
+                    }
+
+                    const json = await response.json();
+                    const d = json.data || {};
+
+                    // Extract fields (handle null/undefined)
+                    const newTitle = d.product_title || '';
+                    const newBullets = JSON.stringify(d.about_product || []);
+                    const newImages = JSON.stringify((d.product_photos || []).slice().sort());
+                    const newAplus = JSON.stringify(d.aplus_images || []);
+                    const firstImage = (d.product_photos && d.product_photos.length > 0) ? d.product_photos[0] : null;
+
+                    // Fetch latest snapshot
+                    const { data: lastSnap } = await sb
+                        .from('ct_snapshots')
+                        .select('*')
+                        .eq('product_id', product.id)
+                        .order('fetched_at', { ascending: false })
+                        .limit(1);
+
+                    const prevSnapshot = (lastSnap && lastSnap.length > 0) ? lastSnap[0] : null;
+
+                    // Insert new snapshot
+                    const { data: newSnap, error: snapErr } = await sb
+                        .from('ct_snapshots')
+                        .insert({
+                            product_id: product.id,
+                            title: newTitle,
+                            bullets: newBullets,
+                            images: newImages,
+                            a_plus: newAplus,
+                            fetched_at: new Date().toISOString()
+                        })
+                        .select()
+                        .single();
+
+                    if (snapErr) {
+                        console.error('Snapshot insert error for ' + product.asin, snapErr);
+                        errorCount++;
+                        continue;
+                    }
+
+                    // Compare with previous snapshot and create change records
+                    if (prevSnapshot) {
+                        const fields = [
+                            { name: 'title', oldVal: prevSnapshot.title || '', newVal: newTitle },
+                            { name: 'bullets', oldVal: prevSnapshot.bullets || '[]', newVal: newBullets },
+                            { name: 'images', oldVal: JSON.stringify((JSON.parse(prevSnapshot.images || '[]')).slice().sort()), newVal: newImages },
+                            { name: 'a_plus', oldVal: prevSnapshot.a_plus || '[]', newVal: newAplus }
+                        ];
+
+                        for (const field of fields) {
+                            if (field.oldVal !== field.newVal) {
+                                changesCount++;
+                                await sb.from('ct_changes').insert({
+                                    product_id: product.id,
+                                    snapshot_id: newSnap.id,
+                                    field: field.name,
+                                    old_value: field.oldVal,
+                                    new_value: field.newVal
+                                });
+                            }
+                        }
+                    }
+
+                    // Update product record
+                    await sb.from('ct_products').update({
+                        title: newTitle,
+                        image_url: firstImage,
+                        last_scanned_at: new Date().toISOString()
+                    }).eq('id', product.id);
+
+                } catch (err) {
+                    console.error('Scan error for ASIN ' + product.asin + ':', err);
+                    errorCount++;
+                }
+
+                // Rate limit delay (skip after last item)
+                if (i < total - 1 && !scanCancelled) {
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                }
+            }
+
+            // Close overlay
+            overlay.classList.remove('open');
+
+            // Show summary toast
+            let msg = 'Scan abgeschlossen. ' + (scanCancelled ? '(Abgebrochen) ' : '') +
+                      total + ' ASINs gescannt, ' + changesCount + ' Änderungen gefunden.';
+            if (errorCount > 0) {
+                msg += ' ' + errorCount + ' Fehler.';
+            }
+            showToast(msg);
+
+            // Reload ASIN table
+            loadAsins();
         });
 
         async function loadAsins() {
@@ -691,6 +962,13 @@
 
         function escAttr(str) {
             return str.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+        }
+
+        function showToast(message) {
+            var toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.classList.add('show');
+            setTimeout(function() { toast.classList.remove('show'); }, 5000);
         }
 
         // Close modals on overlay click
