@@ -712,15 +712,24 @@
             const marketplaceMap = { DE: 'DE', US: 'US', UK: 'GB', FR: 'FR', IT: 'IT', ES: 'ES' };
             const country = marketplaceMap[clientData.marketplace] || clientData.marketplace;
 
-            // Get active products
-            const { data: products } = await sb
+            // Get active products not scanned in last 24h
+            const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+            const { data: allProducts } = await sb
                 .from('ct_products')
                 .select('*')
                 .eq('client_id', activeClientId)
                 .eq('status', 'active');
 
-            if (!products || products.length === 0) {
+            // Filter: only scan products not scanned in last 24h
+            const products = (allProducts || []).filter(p => !p.last_scanned_at || p.last_scanned_at < yesterday);
+
+            if (!allProducts || allProducts.length === 0) {
                 alert('Keine aktiven ASINs vorhanden.');
+                return;
+            }
+
+            if (products.length === 0) {
+                alert('Alle ' + allProducts.length + ' ASINs wurden in den letzten 24h bereits gescannt.');
                 return;
             }
 
