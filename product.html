@@ -1,0 +1,657 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Produkt – Content Tracker</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: Arial, sans-serif;
+            background: #0d1117;
+            color: #e6edf3;
+            min-height: 100vh;
+        }
+        a { color: #3551FF; text-decoration: none; }
+        a:hover { text-decoration: underline; }
+
+        /* Top bar */
+        .topbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 24px;
+            height: 56px;
+            background: #161b22;
+            border-bottom: 1px solid #30363d;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        .topbar-left { display: flex; align-items: center; gap: 32px; }
+        .logo { font-size: 18px; font-weight: 700; color: #3551FF; }
+        .nav { display: flex; gap: 24px; }
+        .nav a {
+            color: #8b949e;
+            font-size: 14px;
+            padding: 4px 0;
+            border-bottom: 2px solid transparent;
+            transition: color .15s;
+        }
+        .nav a:hover { color: #e6edf3; text-decoration: none; }
+        .nav a.active { color: #e6edf3; border-bottom-color: #3551FF; }
+        .btn-logout {
+            background: transparent;
+            border: 1px solid #30363d;
+            color: #8b949e;
+            padding: 6px 14px;
+            border-radius: 6px;
+            font-size: 13px;
+            cursor: pointer;
+            transition: border-color .15s, color .15s;
+        }
+        .btn-logout:hover { border-color: #8b949e; color: #e6edf3; }
+
+        /* Main content */
+        .main { max-width: 960px; margin: 0 auto; padding: 32px 20px; }
+
+        /* Back link */
+        .back-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            color: #8b949e;
+            font-size: 14px;
+            margin-bottom: 20px;
+            transition: color .15s;
+        }
+        .back-link:hover { color: #e6edf3; text-decoration: none; }
+
+        /* Product header */
+        .product-header {
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 10px;
+            padding: 24px;
+            display: flex;
+            gap: 24px;
+            margin-bottom: 32px;
+        }
+        .product-image {
+            width: 100px;
+            height: 100px;
+            border-radius: 8px;
+            object-fit: cover;
+            flex-shrink: 0;
+            background: #21262d;
+        }
+        .product-image-placeholder {
+            width: 100px;
+            height: 100px;
+            border-radius: 8px;
+            background: #21262d;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #484f58;
+            font-size: 32px;
+        }
+        .product-info { flex: 1; min-width: 0; }
+        .product-asin {
+            font-family: monospace;
+            font-size: 13px;
+            color: #8b949e;
+            margin-bottom: 4px;
+        }
+        .product-title {
+            font-size: 18px;
+            font-weight: 700;
+            margin-bottom: 8px;
+            line-height: 1.3;
+        }
+        .product-meta {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 8px;
+            font-size: 13px;
+            color: #8b949e;
+        }
+        .badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: .3px;
+        }
+        .badge-marketplace {
+            background: rgba(53, 81, 255, .15);
+            color: #3551FF;
+        }
+        .badge-active {
+            background: rgba(63, 185, 80, .15);
+            color: #3fb950;
+        }
+        .badge-paused {
+            background: rgba(234, 179, 8, .15);
+            color: #eab308;
+        }
+        .product-scan {
+            font-size: 12px;
+            color: #484f58;
+            margin-bottom: 12px;
+        }
+        .btn-scan {
+            background: #3551FF;
+            color: #fff;
+            border: none;
+            padding: 8px 18px;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background .15s;
+        }
+        .btn-scan:hover { background: #4a63ff; }
+
+        /* Timeline */
+        .timeline { position: relative; padding-left: 28px; }
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 5px;
+            top: 6px;
+            bottom: 0;
+            width: 2px;
+            background: #30363d;
+        }
+        .timeline-entry {
+            position: relative;
+            margin-bottom: 24px;
+        }
+        .timeline-dot {
+            position: absolute;
+            left: -28px;
+            top: 18px;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            border: 2px solid #0d1117;
+            z-index: 1;
+        }
+        .timeline-card {
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 8px;
+            padding: 18px 20px;
+        }
+        .timeline-card-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 14px;
+            flex-wrap: wrap;
+        }
+        .field-badge {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .field-titel { background: rgba(53, 81, 255, .15); color: #3551FF; }
+        .field-bullets { background: rgba(63, 185, 80, .15); color: #3fb950; }
+        .field-bilder { background: rgba(234, 179, 8, .15); color: #eab308; }
+        .field-aplus { background: rgba(168, 85, 247, .15); color: #a855f7; }
+        .timeline-date {
+            font-size: 13px;
+            color: #8b949e;
+        }
+
+        /* Diff: Title */
+        .diff-inline { font-size: 14px; line-height: 1.7; }
+        .diff-del {
+            background: #3d1f1f;
+            color: #f85149;
+            text-decoration: line-through;
+            padding: 1px 3px;
+            border-radius: 3px;
+        }
+        .diff-add {
+            background: #1f3d1f;
+            color: #3fb950;
+            padding: 1px 3px;
+            border-radius: 3px;
+        }
+
+        /* Diff: Bullets */
+        .diff-bullets { font-size: 14px; line-height: 1.8; }
+        .diff-bullet-line { display: flex; gap: 8px; align-items: flex-start; }
+        .diff-bullet-prefix {
+            flex-shrink: 0;
+            font-weight: 700;
+            width: 18px;
+            text-align: center;
+        }
+        .diff-bullet-removed .diff-bullet-prefix { color: #f85149; }
+        .diff-bullet-added .diff-bullet-prefix { color: #3fb950; }
+        .diff-bullet-modified .diff-bullet-prefix { color: #eab308; }
+        .diff-bullet-removed { color: #f85149; }
+        .diff-bullet-added { color: #3fb950; }
+        .diff-bullet-modified { color: #e6edf3; }
+
+        /* Diff: Images */
+        .diff-images-section { margin-bottom: 10px; }
+        .diff-images-label {
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+        .diff-images-label-removed { color: #f85149; }
+        .diff-images-label-added { color: #3fb950; }
+        .diff-images-row { display: flex; gap: 10px; flex-wrap: wrap; }
+        .diff-img {
+            width: 80px;
+            height: 80px;
+            object-fit: cover;
+            border-radius: 6px;
+            border: 2px solid;
+        }
+        .diff-img-removed { border-color: #f85149; }
+        .diff-img-added { border-color: #3fb950; }
+
+        /* Diff: A+ Content */
+        .aplus-toggle {
+            background: #21262d;
+            border: 1px solid #30363d;
+            color: #e6edf3;
+            padding: 6px 14px;
+            border-radius: 6px;
+            font-size: 13px;
+            cursor: pointer;
+            margin-top: 8px;
+            transition: background .15s;
+        }
+        .aplus-toggle:hover { background: #30363d; }
+        .aplus-detail { display: none; margin-top: 14px; }
+        .aplus-detail.open { display: flex; gap: 16px; flex-wrap: wrap; }
+        .aplus-panel { flex: 1; min-width: 280px; }
+        .aplus-panel-label {
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+            padding: 6px 10px;
+            border-radius: 6px 6px 0 0;
+        }
+        .aplus-panel-label-old { background: #3d1f1f; color: #f85149; }
+        .aplus-panel-label-new { background: #1f3d1f; color: #3fb950; }
+        .aplus-panel pre {
+            background: #0d1117;
+            border: 1px solid #30363d;
+            border-top: none;
+            border-radius: 0 0 6px 6px;
+            padding: 12px;
+            font-size: 12px;
+            color: #8b949e;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            word-break: break-word;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        /* Empty state */
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #484f58;
+            font-size: 15px;
+        }
+
+        /* Loading */
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #8b949e;
+            font-size: 14px;
+        }
+
+        /* Responsive */
+        @media (max-width: 600px) {
+            .product-header { flex-direction: column; align-items: flex-start; }
+            .aplus-detail.open { flex-direction: column; }
+            .aplus-panel { min-width: 0; }
+        }
+    </style>
+</head>
+<body>
+    <!-- Top bar -->
+    <header class="topbar">
+        <div class="topbar-left">
+            <span class="logo">Content Tracker</span>
+            <nav class="nav">
+                <a href="dashboard.html">Dashboard</a>
+                <a href="clients.html">Produkte</a>
+            </nav>
+        </div>
+        <button class="btn-logout" onclick="sessionStorage.removeItem('ct_auth'); location.href='index.html';">Logout</button>
+    </header>
+
+    <div class="main">
+        <a href="dashboard.html" class="back-link">&larr; Zur&uuml;ck</a>
+
+        <!-- Product header card -->
+        <div class="product-header" id="productHeader">
+            <div class="loading">Produkt wird geladen&hellip;</div>
+        </div>
+
+        <!-- Change timeline -->
+        <div id="timeline">
+            <div class="loading">Änderungen werden geladen&hellip;</div>
+        </div>
+    </div>
+
+    <script>
+        // Auth check
+        if (!sessionStorage.getItem('ct_auth')) {
+            location.href = 'index.html';
+        }
+
+        // Supabase init
+        const sb = supabase.createClient(
+            'https://lgrnmiszhhahfcmctmwo.supabase.co',
+            'sb_publishable_E5tO2TvBrU8f1s5djnVOOQ_vk1djyAI'
+        );
+
+        // Get product ID from URL
+        const params = new URLSearchParams(location.search);
+        const productId = params.get('id');
+        if (!productId) {
+            location.href = 'dashboard.html';
+        }
+
+        // --- Diff helpers ---
+
+        function diffWords(oldText, newText) {
+            if (!oldText && !newText) return '';
+            if (!oldText) return '<span class="diff-add">' + esc(newText) + '</span>';
+            if (!newText) return '<span class="diff-del">' + esc(oldText) + '</span>';
+
+            const oldWords = oldText.split(/\s+/);
+            const newWords = newText.split(/\s+/);
+            const result = [];
+
+            // Simple LCS-based word diff
+            const lcs = buildLCS(oldWords, newWords);
+            let oi = 0, ni = 0, li = 0;
+
+            while (oi < oldWords.length || ni < newWords.length) {
+                if (li < lcs.length && oi < oldWords.length && ni < newWords.length && oldWords[oi] === lcs[li] && newWords[ni] === lcs[li]) {
+                    result.push(esc(lcs[li]));
+                    oi++; ni++; li++;
+                } else if (li < lcs.length && ni < newWords.length && newWords[ni] === lcs[li]) {
+                    // Old word removed
+                    result.push('<span class="diff-del">' + esc(oldWords[oi]) + '</span>');
+                    oi++;
+                } else if (li < lcs.length && oi < oldWords.length && oldWords[oi] === lcs[li]) {
+                    // New word added
+                    result.push('<span class="diff-add">' + esc(newWords[ni]) + '</span>');
+                    ni++;
+                } else {
+                    // Neither matches LCS next
+                    if (oi < oldWords.length && (li >= lcs.length || oldWords[oi] !== lcs[li])) {
+                        result.push('<span class="diff-del">' + esc(oldWords[oi]) + '</span>');
+                        oi++;
+                    }
+                    if (ni < newWords.length && (li >= lcs.length || newWords[ni] !== lcs[li])) {
+                        result.push('<span class="diff-add">' + esc(newWords[ni]) + '</span>');
+                        ni++;
+                    }
+                }
+            }
+
+            return result.join(' ');
+        }
+
+        function buildLCS(a, b) {
+            const m = a.length, n = b.length;
+            const dp = Array.from({ length: m + 1 }, () => new Array(n + 1).fill(0));
+            for (let i = 1; i <= m; i++) {
+                for (let j = 1; j <= n; j++) {
+                    dp[i][j] = a[i - 1] === b[j - 1] ? dp[i - 1][j - 1] + 1 : Math.max(dp[i - 1][j], dp[i][j - 1]);
+                }
+            }
+            const result = [];
+            let i = m, j = n;
+            while (i > 0 && j > 0) {
+                if (a[i - 1] === b[j - 1]) { result.unshift(a[i - 1]); i--; j--; }
+                else if (dp[i - 1][j] > dp[i][j - 1]) { i--; }
+                else { j--; }
+            }
+            return result;
+        }
+
+        function esc(str) {
+            const d = document.createElement('div');
+            d.textContent = str || '';
+            return d.innerHTML;
+        }
+
+        function formatDate(dateStr) {
+            const d = new Date(dateStr);
+            const dd = String(d.getDate()).padStart(2, '0');
+            const mm = String(d.getMonth() + 1).padStart(2, '0');
+            const yyyy = d.getFullYear();
+            const hh = String(d.getHours()).padStart(2, '0');
+            const min = String(d.getMinutes()).padStart(2, '0');
+            return dd + '.' + mm + '.' + yyyy + ', ' + hh + ':' + min + ' Uhr';
+        }
+
+        function fieldLabel(field) {
+            const map = { title: 'Titel', bullets: 'Bullets', images: 'Bilder', aplus: 'A+ Content' };
+            return map[field] || field;
+        }
+
+        function fieldClass(field) {
+            const map = { title: 'field-titel', bullets: 'field-bullets', images: 'field-bilder', aplus: 'field-aplus' };
+            return map[field] || 'field-titel';
+        }
+
+        function dotColor(field) {
+            const map = { title: '#3551FF', bullets: '#3fb950', images: '#eab308', aplus: '#a855f7' };
+            return map[field] || '#3551FF';
+        }
+
+        // --- Render diff based on type ---
+
+        function renderDiff(change) {
+            const field = change.field_name;
+            const oldVal = change.old_value;
+            const newVal = change.new_value;
+
+            if (field === 'title') {
+                return '<div class="diff-inline">' + diffWords(oldVal || '', newVal || '') + '</div>';
+            }
+
+            if (field === 'bullets') {
+                return renderBulletsDiff(oldVal, newVal);
+            }
+
+            if (field === 'images') {
+                return renderImagesDiff(oldVal, newVal);
+            }
+
+            if (field === 'aplus') {
+                return renderAplusDiff(oldVal, newVal, change.id);
+            }
+
+            // Fallback: simple word diff
+            return '<div class="diff-inline">' + diffWords(oldVal || '', newVal || '') + '</div>';
+        }
+
+        function renderBulletsDiff(oldVal, newVal) {
+            let oldBullets = [], newBullets = [];
+            try { oldBullets = JSON.parse(oldVal) || []; } catch (e) {}
+            try { newBullets = JSON.parse(newVal) || []; } catch (e) {}
+
+            const maxLen = Math.max(oldBullets.length, newBullets.length);
+            const lines = [];
+
+            for (let i = 0; i < maxLen; i++) {
+                const ob = i < oldBullets.length ? oldBullets[i] : null;
+                const nb = i < newBullets.length ? newBullets[i] : null;
+
+                if (ob === nb) continue; // unchanged
+
+                if (ob && !nb) {
+                    // removed
+                    lines.push('<div class="diff-bullet-line diff-bullet-removed"><span class="diff-bullet-prefix">&minus;</span><span>' + esc(ob) + '</span></div>');
+                } else if (!ob && nb) {
+                    // added
+                    lines.push('<div class="diff-bullet-line diff-bullet-added"><span class="diff-bullet-prefix">+</span><span>' + esc(nb) + '</span></div>');
+                } else {
+                    // modified
+                    lines.push('<div class="diff-bullet-line diff-bullet-modified"><span class="diff-bullet-prefix">~</span><span>' + diffWords(ob, nb) + '</span></div>');
+                }
+            }
+
+            if (lines.length === 0) return '<div class="diff-inline" style="color:#484f58;">Keine sichtbaren Änderungen</div>';
+            return '<div class="diff-bullets">' + lines.join('') + '</div>';
+        }
+
+        function renderImagesDiff(oldVal, newVal) {
+            let oldImgs = [], newImgs = [];
+            try { oldImgs = JSON.parse(oldVal) || []; } catch (e) {}
+            try { newImgs = JSON.parse(newVal) || []; } catch (e) {}
+
+            const removed = oldImgs.filter(u => !newImgs.includes(u));
+            const added = newImgs.filter(u => !oldImgs.includes(u));
+
+            let html = '';
+            if (removed.length > 0) {
+                html += '<div class="diff-images-section"><div class="diff-images-label diff-images-label-removed">Entfernt:</div><div class="diff-images-row">';
+                removed.forEach(u => { html += '<img src="' + esc(u) + '" class="diff-img diff-img-removed" alt="Entferntes Bild">'; });
+                html += '</div></div>';
+            }
+            if (added.length > 0) {
+                html += '<div class="diff-images-section"><div class="diff-images-label diff-images-label-added">Hinzugefügt:</div><div class="diff-images-row">';
+                added.forEach(u => { html += '<img src="' + esc(u) + '" class="diff-img diff-img-added" alt="Neues Bild">'; });
+                html += '</div></div>';
+            }
+            if (!html) html = '<div class="diff-inline" style="color:#484f58;">Keine sichtbaren Bildänderungen</div>';
+            return html;
+        }
+
+        function renderAplusDiff(oldVal, newVal, id) {
+            const toggleId = 'aplus-' + id;
+            let html = '<div style="color:#e6edf3; font-size:14px;">A+ Content wurde geändert</div>';
+            html += '<button class="aplus-toggle" onclick="toggleAplus(\'' + toggleId + '\', this)">Details anzeigen</button>';
+            html += '<div class="aplus-detail" id="' + toggleId + '">';
+            html += '<div class="aplus-panel"><div class="aplus-panel-label aplus-panel-label-old">Vorher</div><pre>' + esc(oldVal || '') + '</pre></div>';
+            html += '<div class="aplus-panel"><div class="aplus-panel-label aplus-panel-label-new">Nachher</div><pre>' + esc(newVal || '') + '</pre></div>';
+            html += '</div>';
+            return html;
+        }
+
+        function toggleAplus(id, btn) {
+            const el = document.getElementById(id);
+            if (el.classList.contains('open')) {
+                el.classList.remove('open');
+                btn.textContent = 'Details anzeigen';
+            } else {
+                el.classList.add('open');
+                btn.textContent = 'Details ausblenden';
+            }
+        }
+
+        // --- Load data ---
+
+        async function loadProduct() {
+            const { data: product, error } = await sb
+                .from('ct_products')
+                .select('*, ct_clients(name)')
+                .eq('id', productId)
+                .single();
+
+            if (error || !product) {
+                document.getElementById('productHeader').innerHTML = '<div class="empty-state">Produkt nicht gefunden.</div>';
+                return null;
+            }
+
+            const clientName = product.ct_clients ? product.ct_clients.name : '—';
+            const statusClass = product.status === 'active' ? 'badge-active' : 'badge-paused';
+            const statusLabel = product.status === 'active' ? 'Aktiv' : 'Pausiert';
+            const lastScan = product.last_scanned_at ? formatDate(product.last_scanned_at) : '—';
+
+            let imageHtml;
+            if (product.image_url) {
+                imageHtml = '<img src="' + esc(product.image_url) + '" class="product-image" alt="Produktbild">';
+            } else {
+                imageHtml = '<div class="product-image-placeholder">&#128230;</div>';
+            }
+
+            document.getElementById('productHeader').innerHTML =
+                imageHtml +
+                '<div class="product-info">' +
+                    '<div class="product-asin">' + esc(product.asin || '') + '</div>' +
+                    '<div class="product-title">' + esc(product.title || 'Kein Titel') + '</div>' +
+                    '<div class="product-meta">' +
+                        '<span>' + esc(clientName) + '</span>' +
+                        '<span class="badge badge-marketplace">' + esc(product.marketplace || '') + '</span>' +
+                        '<span class="badge ' + statusClass + '">' + statusLabel + '</span>' +
+                    '</div>' +
+                    '<div class="product-scan">Letzter Scan: ' + lastScan + '</div>' +
+                    '<button class="btn-scan" onclick="alert(\'Scan wird in Phase 2 implementiert\')">Jetzt scannen</button>' +
+                '</div>';
+
+            document.title = (product.asin || 'Produkt') + ' – Content Tracker';
+            return product;
+        }
+
+        async function loadChanges() {
+            const { data: changes, error } = await sb
+                .from('ct_changes')
+                .select('*')
+                .eq('product_id', productId)
+                .order('detected_at', { ascending: false });
+
+            const container = document.getElementById('timeline');
+
+            if (error) {
+                container.innerHTML = '<div class="empty-state">Fehler beim Laden der Änderungen.</div>';
+                return;
+            }
+
+            if (!changes || changes.length === 0) {
+                container.innerHTML = '<div class="empty-state">Keine Änderungen für dieses Produkt erkannt.</div>';
+                return;
+            }
+
+            let html = '<div class="timeline">';
+            changes.forEach(change => {
+                const color = dotColor(change.field_name);
+                html += '<div class="timeline-entry">';
+                html += '<div class="timeline-dot" style="background:' + color + ';"></div>';
+                html += '<div class="timeline-card">';
+                html += '<div class="timeline-card-header">';
+                html += '<span class="field-badge ' + fieldClass(change.field_name) + '">' + fieldLabel(change.field_name) + '</span>';
+                html += '<span class="timeline-date">' + formatDate(change.detected_at) + '</span>';
+                html += '</div>';
+                html += renderDiff(change);
+                html += '</div></div>';
+            });
+            html += '</div>';
+
+            container.innerHTML = html;
+        }
+
+        // Init
+        Promise.all([loadProduct(), loadChanges()]);
+    </script>
+</body>
+</html>

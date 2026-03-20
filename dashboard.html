@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard – Content Tracker</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: Arial, sans-serif;
+            background: #0d1117;
+            color: #e6edf3;
+            min-height: 100vh;
+        }
+        a { color: #3551FF; text-decoration: none; }
+        a:hover { text-decoration: underline; }
+
+        /* Top bar */
+        .topbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 24px;
+            height: 56px;
+            background: #161b22;
+            border-bottom: 1px solid #30363d;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        .topbar-left { display: flex; align-items: center; gap: 32px; }
+        .logo { font-size: 18px; font-weight: 700; color: #3551FF; }
+        .nav { display: flex; gap: 24px; }
+        .nav a {
+            color: #8b949e;
+            font-size: 14px;
+            padding: 4px 0;
+            border-bottom: 2px solid transparent;
+            transition: color .15s;
+        }
+        .nav a:hover { color: #e6edf3; text-decoration: none; }
+        .nav a.active { color: #e6edf3; border-bottom-color: #3551FF; }
+        .btn-logout {
+            background: transparent;
+            border: 1px solid #30363d;
+            color: #8b949e;
+            padding: 6px 14px;
+            border-radius: 6px;
+            font-size: 13px;
+            cursor: pointer;
+            transition: border-color .15s, color .15s;
+        }
+        .btn-logout:hover { border-color: #8b949e; color: #e6edf3; }
+
+        /* Main content */
+        .main { max-width: 960px; margin: 0 auto; padding: 32px 20px; }
+
+        /* Filter bar */
+        .filter-bar {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-bottom: 24px;
+        }
+        .filter-bar select {
+            background: #161b22;
+            border: 1px solid #30363d;
+            color: #e6edf3;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-family: Arial, sans-serif;
+            min-width: 160px;
+            cursor: pointer;
+            appearance: none;
+            -webkit-appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='7'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%238b949e' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 10px center;
+            padding-right: 32px;
+        }
+        .filter-bar select:focus { outline: none; border-color: #3551FF; }
+
+        /* Stats row */
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+            margin-bottom: 32px;
+        }
+        .stat-card {
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 8px;
+            padding: 20px;
+        }
+        .stat-label { font-size: 13px; color: #8b949e; margin-bottom: 6px; }
+        .stat-value { font-size: 28px; font-weight: 700; }
+
+        /* Changes feed */
+        .feed-title { font-size: 16px; font-weight: 600; margin-bottom: 16px; }
+        .change-card {
+            display: flex;
+            gap: 16px;
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 12px;
+            transition: border-color .15s;
+        }
+        .change-card:hover { border-color: #484f58; }
+        .change-img {
+            width: 60px;
+            height: 60px;
+            border-radius: 6px;
+            object-fit: cover;
+            flex-shrink: 0;
+            background: #21262d;
+        }
+        .change-img-placeholder {
+            width: 60px;
+            height: 60px;
+            border-radius: 6px;
+            flex-shrink: 0;
+            background: #21262d;
+        }
+        .change-body { flex: 1; min-width: 0; }
+        .change-row1 {
+            display: flex;
+            align-items: baseline;
+            gap: 8px;
+            margin-bottom: 6px;
+            flex-wrap: wrap;
+        }
+        .change-asin {
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 12px;
+            color: #8b949e;
+            background: #21262d;
+            padding: 2px 6px;
+            border-radius: 4px;
+            flex-shrink: 0;
+        }
+        .change-title {
+            font-size: 14px;
+            font-weight: 600;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .change-row2 {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 8px;
+            flex-wrap: wrap;
+        }
+        .change-client { font-size: 13px; color: #8b949e; }
+        .field-badge {
+            font-size: 12px;
+            font-weight: 600;
+            padding: 2px 8px;
+            border-radius: 12px;
+        }
+        .field-badge.titel { background: rgba(53,81,255,0.2); color: #3551FF; }
+        .field-badge.bullets { background: rgba(63,185,80,0.2); color: #3fb950; }
+        .field-badge.bilder { background: rgba(234,179,8,0.2); color: #eab308; }
+        .field-badge.aplus { background: rgba(168,85,247,0.2); color: #a855f7; }
+
+        .change-diff {
+            font-size: 13px;
+            line-height: 1.5;
+            margin-bottom: 8px;
+            overflow: hidden;
+        }
+        .diff-old {
+            text-decoration: line-through;
+            color: #f85149;
+            margin-right: 6px;
+        }
+        .diff-new { color: #3fb950; }
+
+        .change-row4 {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+        }
+        .change-time { font-size: 12px; color: #8b949e; }
+        .change-link { font-size: 13px; font-weight: 500; }
+
+        /* Load more */
+        .load-more-wrap { text-align: center; margin-top: 20px; }
+        .btn-load-more {
+            background: #21262d;
+            border: 1px solid #30363d;
+            color: #e6edf3;
+            padding: 10px 28px;
+            border-radius: 6px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: background .15s;
+        }
+        .btn-load-more:hover { background: #30363d; }
+
+        /* Empty state */
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #8b949e;
+            font-size: 15px;
+        }
+
+        /* Loading spinner */
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #8b949e;
+            font-size: 14px;
+        }
+
+        @media (max-width: 640px) {
+            .stats-row { grid-template-columns: 1fr; }
+            .filter-bar select { min-width: 100%; }
+            .topbar-left { gap: 16px; }
+            .nav { gap: 14px; }
+            .change-card { flex-direction: column; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="topbar">
+    <div class="topbar-left">
+        <div class="logo">Content Tracker</div>
+        <nav class="nav">
+            <a href="dashboard.html" class="active">Dashboard</a>
+            <a href="clients.html">Produkte</a>
+        </nav>
+    </div>
+    <button class="btn-logout" onclick="logout()">Logout</button>
+</div>
+
+<div class="main">
+    <!-- Filter Bar -->
+    <div class="filter-bar">
+        <select id="filterClient">
+            <option value="">Alle Kunden</option>
+        </select>
+        <select id="filterField">
+            <option value="">Alle Felder</option>
+            <option value="title">Titel</option>
+            <option value="bullets">Bullets</option>
+            <option value="images">Bilder</option>
+            <option value="aplus">A+ Content</option>
+        </select>
+        <select id="filterTime">
+            <option value="7">Letzte 7 Tage</option>
+            <option value="30">Letzte 30 Tage</option>
+            <option value="">Alles</option>
+        </select>
+    </div>
+
+    <!-- Stats Row -->
+    <div class="stats-row">
+        <div class="stat-card">
+            <div class="stat-label">Überwachte Produkte</div>
+            <div class="stat-value" id="statProducts">–</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">Änderungen (7 Tage)</div>
+            <div class="stat-value" id="statChanges">–</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">Letzter Scan</div>
+            <div class="stat-value" id="statLastScan">–</div>
+        </div>
+    </div>
+
+    <!-- Changes Feed -->
+    <div class="feed-title">Letzte Änderungen</div>
+    <div id="feed"><div class="loading">Lade Änderungen…</div></div>
+    <div class="load-more-wrap" id="loadMoreWrap" style="display:none;">
+        <button class="btn-load-more" onclick="loadMore()">Mehr laden</button>
+    </div>
+</div>
+
+<script>
+    // Auth check
+    if (!sessionStorage.getItem('ct_auth')) {
+        window.location.href = 'index.html';
+    }
+
+    const SUPABASE_URL = 'https://lgrnmiszhhahfcmctmwo.supabase.co';
+    const SUPABASE_KEY = 'sb_publishable_E5tO2TvBrU8f1s5djnVOOQ_vk1djyAI';
+    const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    const PAGE_SIZE = 20;
+    let currentOffset = 0;
+    let allChanges = [];
+    let productsMap = {};
+    let clientsMap = {};
+
+    // --- Helpers ---
+
+    function relativeTime(dateStr) {
+        const now = new Date();
+        const d = new Date(dateStr);
+        const diffMs = now - d;
+        const diffMin = Math.floor(diffMs / 60000);
+        const diffH = Math.floor(diffMs / 3600000);
+        const diffD = Math.floor(diffMs / 86400000);
+
+        if (diffMin < 1) return 'gerade eben';
+        if (diffMin < 60) return 'vor ' + diffMin + ' Minuten';
+        if (diffH < 24) return 'vor ' + diffH + ' Stunden';
+        if (diffD === 1) return 'gestern';
+        if (diffD < 30) return 'vor ' + diffD + ' Tagen';
+        return d.toLocaleDateString('de-DE');
+    }
+
+    function fieldLabel(field) {
+        const map = { title: 'Titel', bullets: 'Bullets', images: 'Bilder', aplus: 'A+ Content' };
+        return map[field] || field;
+    }
+
+    function fieldClass(field) {
+        const map = { title: 'titel', bullets: 'bullets', images: 'bilder', aplus: 'aplus' };
+        return map[field] || '';
+    }
+
+    function truncate(str, len) {
+        if (!str) return '';
+        return str.length > len ? str.substring(0, len) + '…' : str;
+    }
+
+    function escapeHtml(str) {
+        if (!str) return '';
+        const div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
+    }
+
+    // --- Data Loading ---
+
+    async function loadData() {
+        // Load clients
+        const { data: clients } = await sb.from('ct_clients').select('id, name');
+        if (clients) {
+            clients.forEach(c => { clientsMap[c.id] = c; });
+            const sel = document.getElementById('filterClient');
+            clients.forEach(c => {
+                const opt = document.createElement('option');
+                opt.value = c.id;
+                opt.textContent = c.name;
+                sel.appendChild(opt);
+            });
+        }
+
+        // Load products with client_id
+        const { data: products } = await sb.from('ct_products').select('id, asin, title, image_url, client_id, is_active, last_scanned_at');
+        if (products) {
+            products.forEach(p => { productsMap[p.id] = p; });
+        }
+
+        // Stats
+        updateStats(products || []);
+
+        // Load changes and render
+        await loadChanges();
+    }
+
+    function updateStats(products) {
+        // Active products count
+        const activeCount = products.filter(p => p.is_active !== false).length;
+        document.getElementById('statProducts').textContent = activeCount;
+
+        // Changes in last 7 days
+        const sevenDaysAgo = new Date();
+        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+        sb.from('ct_changes')
+            .select('id', { count: 'exact', head: true })
+            .gte('detected_at', sevenDaysAgo.toISOString())
+            .then(({ count }) => {
+                document.getElementById('statChanges').textContent = count || 0;
+            });
+
+        // Last scan
+        const scanned = products
+            .filter(p => p.last_scanned_at)
+            .sort((a, b) => new Date(b.last_scanned_at) - new Date(a.last_scanned_at));
+        if (scanned.length > 0) {
+            document.getElementById('statLastScan').textContent = relativeTime(scanned[0].last_scanned_at);
+            document.getElementById('statLastScan').style.fontSize = '18px';
+        } else {
+            document.getElementById('statLastScan').textContent = '–';
+        }
+    }
+
+    async function loadChanges() {
+        const filterClient = document.getElementById('filterClient').value;
+        const filterField = document.getElementById('filterField').value;
+        const filterTime = document.getElementById('filterTime').value;
+
+        let query = sb.from('ct_changes').select('*').order('detected_at', { ascending: false });
+
+        // Field filter
+        if (filterField) {
+            query = query.eq('field_changed', filterField);
+        }
+
+        // Time filter
+        if (filterTime) {
+            const cutoff = new Date();
+            cutoff.setDate(cutoff.getDate() - parseInt(filterTime));
+            query = query.gte('detected_at', cutoff.toISOString());
+        }
+
+        const { data: changes, error } = await query;
+
+        if (error) {
+            document.getElementById('feed').innerHTML = '<div class="empty-state">Fehler beim Laden der Daten.</div>';
+            return;
+        }
+
+        // Client filter (client-side via product -> client relationship)
+        let filtered = changes || [];
+        if (filterClient) {
+            const clientProductIds = new Set(
+                Object.values(productsMap)
+                    .filter(p => String(p.client_id) === filterClient)
+                    .map(p => p.id)
+            );
+            filtered = filtered.filter(c => clientProductIds.has(c.product_id));
+        }
+
+        allChanges = filtered;
+        currentOffset = 0;
+        renderFeed();
+    }
+
+    function renderFeed() {
+        const feed = document.getElementById('feed');
+        const loadMoreWrap = document.getElementById('loadMoreWrap');
+
+        if (allChanges.length === 0) {
+            feed.innerHTML = '<div class="empty-state">Noch keine Änderungen erkannt. Starte einen Scan unter <a href="clients.html">Produkte</a>.</div>';
+            loadMoreWrap.style.display = 'none';
+            return;
+        }
+
+        const slice = allChanges.slice(0, currentOffset + PAGE_SIZE);
+        let html = '';
+
+        slice.forEach(change => {
+            const product = productsMap[change.product_id] || {};
+            const client = clientsMap[product.client_id] || {};
+
+            const imgHtml = product.image_url
+                ? '<img class="change-img" src="' + escapeHtml(product.image_url) + '" alt="">'
+                : '<div class="change-img-placeholder"></div>';
+
+            const oldText = truncate(change.old_value, 120);
+            const newText = truncate(change.new_value, 120);
+
+            html += '<div class="change-card">'
+                + imgHtml
+                + '<div class="change-body">'
+                +   '<div class="change-row1">'
+                +     '<span class="change-asin">' + escapeHtml(product.asin || '–') + '</span>'
+                +     '<span class="change-title">' + escapeHtml(product.title || 'Unbekanntes Produkt') + '</span>'
+                +   '</div>'
+                +   '<div class="change-row2">'
+                +     '<span class="change-client">' + escapeHtml(client.name || '') + '</span>'
+                +     '<span class="field-badge ' + fieldClass(change.field_changed) + '">' + fieldLabel(change.field_changed) + '</span>'
+                +   '</div>'
+                +   '<div class="change-diff">'
+                +     (oldText ? '<span class="diff-old">' + escapeHtml(oldText) + '</span>' : '')
+                +     (newText ? '<span class="diff-new">' + escapeHtml(newText) + '</span>' : '')
+                +   '</div>'
+                +   '<div class="change-row4">'
+                +     '<span class="change-time">' + relativeTime(change.detected_at) + '</span>'
+                +     '<a class="change-link" href="product.html?id=' + change.product_id + '">Details ansehen →</a>'
+                +   '</div>'
+                + '</div>'
+                + '</div>';
+        });
+
+        feed.innerHTML = html;
+        currentOffset = slice.length;
+
+        loadMoreWrap.style.display = currentOffset < allChanges.length ? '' : 'none';
+    }
+
+    function loadMore() {
+        renderFeed();
+    }
+
+    function logout() {
+        sessionStorage.removeItem('ct_auth');
+        window.location.href = 'index.html';
+    }
+
+    // Filter event listeners
+    document.getElementById('filterClient').addEventListener('change', loadChanges);
+    document.getElementById('filterField').addEventListener('change', loadChanges);
+    document.getElementById('filterTime').addEventListener('change', loadChanges);
+
+    // Init
+    loadData();
+</script>
+
+</body>
+</html>
