@@ -82,9 +82,9 @@ Deno.serve(async (req: Request) => {
         if (!d) { errors++; continue; }
 
         const title = d.product_title || "";
-        const bulletsArr = (d.about_product || []).sort();
-        const imagesArr = (d.product_photos || []).sort();
-        const aPlusArr = (d.aplus_images || []).sort();
+        const bulletsArr = d.about_product || [];
+        const imagesArr = d.product_photos || [];
+        const aPlusArr = d.aplus_images || [];
 
         // Get previous snapshot
         const { data: prevSnaps } = await sb
@@ -114,8 +114,8 @@ Deno.serve(async (req: Request) => {
         if (prev && snapId) {
           const checks = [
             { field: "title", oldVal: prev.title || "", newVal: title },
-            { field: "bullets", oldVal: JSON.stringify((prev.bullets || []).sort()), newVal: JSON.stringify(bulletsArr) },
-            { field: "images", oldVal: JSON.stringify((prev.images || []).sort()), newVal: JSON.stringify(imagesArr) },
+            { field: "bullets", oldVal: JSON.stringify(prev.bullets || []), newVal: JSON.stringify(bulletsArr) },
+            { field: "images", oldVal: JSON.stringify(prev.images || []), newVal: JSON.stringify(imagesArr) },
             { field: "a_plus", oldVal: prev.a_plus_html || "[]", newVal: JSON.stringify(aPlusArr) },
           ];
 

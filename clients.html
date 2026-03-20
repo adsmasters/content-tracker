@@ -771,7 +771,7 @@
                     // Extract fields (handle null/undefined)
                     const newTitle = d.product_title || '';
                     const newBullets = JSON.stringify(d.about_product || []);
-                    const newImages = JSON.stringify((d.product_photos || []).slice().sort());
+                    const newImages = JSON.stringify(d.product_photos || []);
                     const newAplus = JSON.stringify(d.aplus_images || []);
                     const firstImage = (d.product_photos && d.product_photos.length > 0) ? d.product_photos[0] : null;
 
@@ -810,7 +810,7 @@
                         const fields = [
                             { name: 'title', oldVal: prevSnapshot.title || '', newVal: newTitle },
                             { name: 'bullets', oldVal: prevSnapshot.bullets || '[]', newVal: newBullets },
-                            { name: 'images', oldVal: JSON.stringify((JSON.parse(prevSnapshot.images || '[]')).slice().sort()), newVal: newImages },
+                            { name: 'images', oldVal: JSON.stringify(JSON.parse(prevSnapshot.images || '[]')), newVal: newImages },
                             { name: 'a_plus', oldVal: prevSnapshot.a_plus || '[]', newVal: newAplus }
                         ];
 
