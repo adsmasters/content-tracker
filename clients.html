@@ -805,7 +805,7 @@
                             title: newTitle,
                             bullets: newBullets,
                             images: newImages,
-                            a_plus: newAplus,
+                            a_plus_html: newAplus,
                             fetched_at: new Date().toISOString()
                         })
                         .select()
@@ -823,7 +823,7 @@
                             { name: 'title', oldVal: prevSnapshot.title || '', newVal: newTitle },
                             { name: 'bullets', oldVal: prevSnapshot.bullets || '[]', newVal: newBullets },
                             { name: 'images', oldVal: JSON.stringify(JSON.parse(prevSnapshot.images || '[]')), newVal: newImages },
-                            { name: 'a_plus', oldVal: prevSnapshot.a_plus || '[]', newVal: newAplus }
+                            { name: 'a_plus', oldVal: prevSnapshot.a_plus_html || '[]', newVal: newAplus }
                         ];
 
                         for (const field of fields) {
