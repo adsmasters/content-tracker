@@ -895,8 +895,8 @@
                 const lastScan = p.last_scanned_at ? formatDate(p.last_scanned_at) : '<span class="text-muted">—</span>';
 
                 html += '<tr>' +
-                    '<td><strong>' + escHtml(p.asin) + '</strong></td>' +
-                    '<td>' + (p.title ? escHtml(p.title) : '<span class="text-muted">Noch nicht gescannt</span>') + '</td>' +
+                    '<td><a href="product.html?id=' + p.id + '" style="color:#3551FF;font-weight:700;text-decoration:none;">' + escHtml(p.asin) + '</a></td>' +
+                    '<td>' + (p.title ? '<a href="product.html?id=' + p.id + '" style="color:#e6edf3;text-decoration:none;">' + escHtml(p.title) + '</a>' : '<span class="text-muted">Noch nicht gescannt</span>') + '</td>' +
                     '<td><span class="status-badge ' + badgeClass + '">' + badgeLabel + '</span></td>' +
                     '<td>' + lastScan + '</td>' +
                     '<td class="actions-cell">' +
