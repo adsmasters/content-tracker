@@ -578,7 +578,7 @@
         async function loadProduct() {
             const { data: product, error } = await sb
                 .from('ct_products')
-                .select('*, ct_clients(name)')
+                .select('*, ct_clients(name, marketplace)')
                 .eq('id', productId)
                 .single();
 
@@ -588,6 +588,7 @@
             }
 
             const clientName = product.ct_clients ? product.ct_clients.name : '—';
+            product.marketplace = product.ct_clients ? product.ct_clients.marketplace : 'DE';
             const statusClass = product.status === 'active' ? 'badge-active' : 'badge-paused';
             const statusLabel = product.status === 'active' ? 'Aktiv' : 'Pausiert';
             const lastScan = product.last_scanned_at ? formatDate(product.last_scanned_at) : '—';
@@ -610,7 +611,8 @@
                         '<span class="badge ' + statusClass + '">' + statusLabel + '</span>' +
                     '</div>' +
                     '<div class="product-scan">Letzter Scan: ' + lastScan + '</div>' +
-                    '<button class="btn-scan" onclick="alert(\'Scan wird in Phase 2 implementiert\')">Jetzt scannen</button>' +
+                    '<button class="btn-scan" id="btnScanProduct">Jetzt scannen</button>' +
+                    '<a href="https://www.amazon.' + (product.marketplace === 'US' ? 'com' : product.marketplace === 'UK' ? 'co.uk' : (product.marketplace || 'de').toLowerCase()) + '/dp/' + esc(product.asin) + '" target="_blank" rel="noopener" style="display:inline-block;padding:8px 16px;background:#21262d;border:1px solid #30363d;border-radius:6px;color:#e6edf3;font-size:13px;font-weight:600;text-decoration:none;">Auf Amazon ansehen ↗</a>' +
                 '</div>';
 
             document.title = (product.asin || 'Produkt') + ' – Content Tracker';
@@ -723,8 +725,71 @@
             container.innerHTML = html;
         }
 
+        // Single product scan
+        async function scanProduct() {
+            const btn = document.getElementById('btnScanProduct');
+            if (!btn) return;
+            btn.disabled = true;
+            btn.textContent = 'Scan läuft...';
+
+            try {
+                const { data: product } = await sb.from('ct_products').select('*, ct_clients(marketplace)').eq('id', productId).single();
+                if (!product) { alert('Produkt nicht gefunden.'); return; }
+
+                const mp = (product.ct_clients?.marketplace || 'DE').toUpperCase();
+                const country = mp === 'UK' ? 'GB' : mp;
+
+                const resp = await fetch('https://real-time-amazon-data.p.rapidapi.com/product-details?asin=' + product.asin + '&country=' + country, {
+                    headers: { 'x-rapidapi-host': 'real-time-amazon-data.p.rapidapi.com', 'x-rapidapi-key': 'f8efc09e81msh6c57af2fcb726adp116390jsne4a9ac230e46' }
+                });
+                const d = (await resp.json()).data;
+                if (!d) { alert('Keine Daten von Amazon erhalten.'); return; }
+
+                const title = d.product_title || '';
+                const newBullets = JSON.stringify(d.about_product || []);
+                const newImages = JSON.stringify(d.product_photos || []);
+                const newAplus = JSON.stringify(d.aplus_images || []);
+
+                const { data: lastSnap } = await sb.from('ct_snapshots').select('*').eq('product_id', productId).order('fetched_at', { ascending: false }).limit(1);
+                const prev = lastSnap && lastSnap.length > 0 ? lastSnap[0] : null;
+
+                const { data: newSnap } = await sb.from('ct_snapshots').insert({
+                    product_id: productId, title, bullets: d.about_product || [], images: d.product_photos || [], a_plus_html: newAplus
+                }).select('id').single();
+
+                let changes = 0;
+                if (prev && newSnap) {
+                    const fields = [
+                        { name: 'title', oldVal: prev.title || '', newVal: title },
+                        { name: 'bullets', oldVal: JSON.stringify(prev.bullets || []), newVal: newBullets },
+                        { name: 'images', oldVal: JSON.stringify(prev.images || []), newVal: newImages },
+                        { name: 'a_plus', oldVal: prev.a_plus_html || '[]', newVal: newAplus }
+                    ];
+                    for (const f of fields) {
+                        if (f.oldVal !== f.newVal) {
+                            await sb.from('ct_changes').insert({ product_id: productId, snapshot_id: newSnap.id, field: f.name, old_value: f.oldVal, new_value: f.newVal });
+                            changes++;
+                        }
+                    }
+                }
+
+                await sb.from('ct_products').update({ title, image_url: (d.product_photos || [])[0] || null, last_scanned_at: new Date().toISOString() }).eq('id', productId);
+
+                alert('Scan abgeschlossen. ' + changes + ' Änderung' + (changes !== 1 ? 'en' : '') + ' erkannt.');
+                location.reload();
+            } catch (e) {
+                alert('Scan fehlgeschlagen: ' + e.message);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Jetzt scannen';
+            }
+        }
+
         // Init
-        Promise.all([loadProduct(), loadChanges(), loadCurrentSnapshot()]);
+        Promise.all([loadProduct(), loadChanges(), loadCurrentSnapshot()]).then(() => {
+            const btn = document.getElementById('btnScanProduct');
+            if (btn) btn.addEventListener('click', scanProduct);
+        });
     </script>
 </body>
 </html>

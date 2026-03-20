@@ -535,6 +535,7 @@
 
         let activeClientId = null;
         let activeClientName = '';
+        let activeClientMarketplace = 'DE';
         let editingClientId = null;
 
         // Logout
@@ -587,7 +588,7 @@
                 const s = stats[c.id] || { count: 0, lastScan: null };
                 const lastScan = s.lastScan ? formatDate(s.lastScan) : '<span class="text-muted">—</span>';
                 html += '<tr>' +
-                    '<td><a class="client-link" data-id="' + c.id + '" data-name="' + escHtml(c.name) + '">' + escHtml(c.name) + '</a></td>' +
+                    '<td><a class="client-link" data-id="' + c.id + '" data-name="' + escHtml(c.name) + '" data-marketplace="' + escHtml(c.marketplace || 'DE') + '">' + escHtml(c.name) + '</a></td>' +
                     '<td>' + escHtml(c.marketplace) + '</td>' +
                     '<td>' + s.count + '</td>' +
                     '<td>' + lastScan + '</td>' +
@@ -602,7 +603,7 @@
             // Attach click handlers for client links
             document.querySelectorAll('.client-link').forEach(link => {
                 link.addEventListener('click', function() {
-                    showAsins(this.dataset.id, this.dataset.name);
+                    showAsins(this.dataset.id, this.dataset.name, this.dataset.marketplace);
                 });
             });
         }
@@ -670,9 +671,10 @@
 
         // ==================== ASINs ====================
 
-        function showAsins(clientId, clientName) {
+        function showAsins(clientId, clientName, marketplace) {
             activeClientId = clientId;
             activeClientName = clientName;
+            activeClientMarketplace = marketplace || 'DE';
             localStorage.setItem('ct_active_client', clientId);
             document.getElementById('sectionClients').style.display = 'none';
             document.getElementById('sectionAsins').style.display = 'block';
@@ -917,6 +919,7 @@
                     '<td><span class="status-badge ' + badgeClass + '">' + badgeLabel + '</span></td>' +
                     '<td>' + lastScan + '</td>' +
                     '<td class="actions-cell">' +
+                        '<a class="btn-sm" href="https://www.amazon.' + (activeClientMarketplace === 'US' ? 'com' : activeClientMarketplace === 'UK' ? 'co.uk' : (activeClientMarketplace || 'de').toLowerCase()) + '/dp/' + escHtml(p.asin) + '" target="_blank" style="text-decoration:none;">Amazon ↗</a>' +
                         '<button class="btn-sm" onclick="toggleStatus(\'' + p.id + '\',\'' + status + '\')">' + toggleLabel + '</button>' +
                         '<button class="btn-sm danger" onclick="deleteProduct(\'' + p.id + '\',\'' + escAttr(p.asin) + '\')">Löschen</button>' +
                     '</td>' +
