@@ -350,6 +350,9 @@
             <div class="loading">Produkt wird geladen&hellip;</div>
         </div>
 
+        <!-- Current snapshot -->
+        <div id="currentSnapshot" style="display:none;"></div>
+
         <!-- Change timeline -->
         <div id="timeline">
             <div class="loading">Änderungen werden geladen&hellip;</div>
@@ -650,8 +653,77 @@
             container.innerHTML = html;
         }
 
+        async function loadCurrentSnapshot() {
+            const { data: snaps } = await sb
+                .from('ct_snapshots')
+                .select('*')
+                .eq('product_id', productId)
+                .order('fetched_at', { ascending: false })
+                .limit(1);
+
+            const container = document.getElementById('currentSnapshot');
+            if (!snaps || snaps.length === 0) {
+                container.style.display = 'none';
+                return;
+            }
+
+            const snap = snaps[0];
+            container.style.display = '';
+
+            let html = '<div style="background:#161b22;border:1px solid #30363d;border-radius:8px;padding:20px;margin-bottom:24px;">';
+            html += '<h3 style="font-size:16px;font-weight:600;margin-bottom:16px;color:#e6edf3;">Aktueller Zustand</h3>';
+
+            // Title
+            html += '<div style="margin-bottom:16px;">';
+            html += '<div style="font-size:11px;text-transform:uppercase;color:#8b949e;letter-spacing:0.5px;margin-bottom:4px;">Titel</div>';
+            html += '<div style="font-size:14px;color:#e6edf3;">' + esc(snap.title || '—') + '</div>';
+            html += '</div>';
+
+            // Bullets
+            const bullets = snap.bullets || [];
+            if (bullets.length > 0) {
+                html += '<div style="margin-bottom:16px;">';
+                html += '<div style="font-size:11px;text-transform:uppercase;color:#8b949e;letter-spacing:0.5px;margin-bottom:4px;">Bullet Points (' + bullets.length + ')</div>';
+                html += '<ul style="list-style:none;padding:0;">';
+                bullets.forEach(function(b) {
+                    html += '<li style="font-size:13px;color:#e6edf3;padding:6px 0;border-bottom:1px solid #21262d;">• ' + esc(b) + '</li>';
+                });
+                html += '</ul></div>';
+            }
+
+            // Images
+            const images = snap.images || [];
+            if (images.length > 0) {
+                html += '<div style="margin-bottom:16px;">';
+                html += '<div style="font-size:11px;text-transform:uppercase;color:#8b949e;letter-spacing:0.5px;margin-bottom:8px;">Bilder (' + images.length + ')</div>';
+                html += '<div style="display:flex;gap:8px;flex-wrap:wrap;">';
+                images.forEach(function(url) {
+                    html += '<img src="' + esc(url) + '" style="width:80px;height:80px;object-fit:cover;border-radius:6px;border:1px solid #30363d;">';
+                });
+                html += '</div></div>';
+            }
+
+            // A+ Images
+            let aPlusImages = [];
+            try { aPlusImages = JSON.parse(snap.a_plus_html || '[]'); } catch(e) {}
+            if (aPlusImages.length > 0) {
+                html += '<div>';
+                html += '<div style="font-size:11px;text-transform:uppercase;color:#8b949e;letter-spacing:0.5px;margin-bottom:8px;">A+ Content Bilder (' + aPlusImages.length + ')</div>';
+                html += '<div style="display:flex;gap:8px;flex-wrap:wrap;">';
+                aPlusImages.forEach(function(url) {
+                    html += '<img src="' + esc(url) + '" style="width:120px;height:80px;object-fit:cover;border-radius:6px;border:1px solid #30363d;">';
+                });
+                html += '</div></div>';
+            }
+
+            html += '<div style="margin-top:12px;font-size:11px;color:#484f58;">Snapshot vom ' + formatDate(snap.fetched_at) + '</div>';
+            html += '</div>';
+
+            container.innerHTML = html;
+        }
+
         // Init
-        Promise.all([loadProduct(), loadChanges()]);
+        Promise.all([loadProduct(), loadChanges(), loadCurrentSnapshot()]);
     </script>
 </body>
 </html>
