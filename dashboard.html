@@ -471,21 +471,41 @@
             return;
         }
 
-        const slice = allChanges.slice(0, currentOffset + PAGE_SIZE);
+        // Group changes by product_id
+        const grouped = {};
+        allChanges.forEach(change => {
+            const pid = change.product_id;
+            if (!grouped[pid]) {
+                grouped[pid] = { changes: [], latestAt: change.detected_at };
+            }
+            grouped[pid].changes.push(change);
+            if (change.detected_at > grouped[pid].latestAt) {
+                grouped[pid].latestAt = change.detected_at;
+            }
+        });
+
+        // Sort groups by latest change date desc
+        const sortedGroups = Object.entries(grouped).sort((a, b) =>
+            new Date(b[1].latestAt) - new Date(a[1].latestAt)
+        );
+
+        const slice = sortedGroups.slice(0, currentOffset + PAGE_SIZE);
         let html = '';
 
-        slice.forEach(change => {
-            const product = productsMap[change.product_id] || {};
+        slice.forEach(([pid, group]) => {
+            const product = productsMap[pid] || {};
             const client = clientsMap[product.client_id] || {};
+            const fields = [...new Set(group.changes.map(c => c.field_changed || c.field))];
 
             const imgHtml = product.image_url
                 ? '<img class="change-img" src="' + escapeHtml(product.image_url) + '" alt="">'
                 : '<div class="change-img-placeholder"></div>';
 
-            const oldText = truncate(change.old_value, 120);
-            const newText = truncate(change.new_value, 120);
+            const badgesHtml = fields.map(f =>
+                '<span class="field-badge ' + fieldClass(f) + '">' + fieldLabel(f) + '</span>'
+            ).join(' ');
 
-            html += '<div class="change-card">'
+            html += '<a href="product.html?id=' + pid + '" class="change-card" style="text-decoration:none;color:inherit;display:flex;cursor:pointer;">'
                 + imgHtml
                 + '<div class="change-body">'
                 +   '<div class="change-row1">'
@@ -494,18 +514,14 @@
                 +   '</div>'
                 +   '<div class="change-row2">'
                 +     '<span class="change-client">' + escapeHtml(client.name || '') + '</span>'
-                +     '<span class="field-badge ' + fieldClass(change.field_changed) + '">' + fieldLabel(change.field_changed) + '</span>'
-                +   '</div>'
-                +   '<div class="change-diff">'
-                +     (oldText ? '<span class="diff-old">' + escapeHtml(oldText) + '</span>' : '')
-                +     (newText ? '<span class="diff-new">' + escapeHtml(newText) + '</span>' : '')
+                +     badgesHtml
                 +   '</div>'
                 +   '<div class="change-row4">'
-                +     '<span class="change-time">' + relativeTime(change.detected_at) + '</span>'
-                +     '<a class="change-link" href="product.html?id=' + change.product_id + '">Details ansehen →</a>'
+                +     '<span class="change-time">' + relativeTime(group.latestAt) + '</span>'
+                +     '<span class="change-link">Details ansehen →</span>'
                 +   '</div>'
                 + '</div>'
-                + '</div>';
+                + '</a>';
         });
 
         feed.innerHTML = html;

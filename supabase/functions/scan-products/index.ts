@@ -164,10 +164,19 @@ Deno.serve(async (req: Request) => {
         const channel = info.name.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
         if (!channel) continue;
 
-        const lines = changes.map((c) =>
-          `• *${c.asin}* — ${c.title ? c.title.substring(0, 60) + "..." : "N/A"} → _${fieldLabels[c.field] || c.field}_ geändert`
-        );
-        const text = `:rotating_light: *Content Tracker: ${changes.length} Änderung${changes.length > 1 ? "en" : ""} erkannt*\n\n${lines.join("\n")}\n\n<https://adsmasters.github.io/content-tracker/dashboard.html|→ Dashboard öffnen>`;
+        // Group by ASIN
+        const byAsin: Record<string, { title: string; fields: string[] }> = {};
+        changes.forEach((c) => {
+          if (!byAsin[c.asin]) byAsin[c.asin] = { title: c.title, fields: [] };
+          if (!byAsin[c.asin].fields.includes(c.field)) byAsin[c.asin].fields.push(c.field);
+        });
+
+        const productCount = Object.keys(byAsin).length;
+        const lines = Object.entries(byAsin).map(([asin, data]) => {
+          const fieldStr = data.fields.map(f => fieldLabels[f] || f).join(", ");
+          return `• *${asin}* — ${data.title ? data.title.substring(0, 50) : "N/A"} → ${fieldStr}`;
+        });
+        const text = `:rotating_light: *Content Tracker: ${productCount} Produkt${productCount > 1 ? "e" : ""} mit Änderungen*\n\n${lines.join("\n")}\n\n<https://adsmasters.github.io/content-tracker/dashboard.html|→ Dashboard öffnen>`;
 
         try {
           await fetch("https://slack.com/api/chat.postMessage", {
