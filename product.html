@@ -457,12 +457,12 @@
         }
 
         function fieldLabel(field) {
-            const map = { title: 'Titel', bullets: 'Bullets', images: 'Bilder', aplus: 'A+ Content' };
+            const map = { title: 'Titel', bullets: 'Bullet Points', images: 'Bilder', a_plus: 'A+ Content', aplus: 'A+ Content' };
             return map[field] || field;
         }
 
         function fieldClass(field) {
-            const map = { title: 'field-titel', bullets: 'field-bullets', images: 'field-bilder', aplus: 'field-aplus' };
+            const map = { title: 'field-titel', bullets: 'field-bullets', images: 'field-bilder', a_plus: 'field-aplus', aplus: 'field-aplus' };
             return map[field] || 'field-titel';
         }
 
@@ -474,7 +474,7 @@
         // --- Render diff based on type ---
 
         function renderDiff(change) {
-            const field = change.field_name;
+            const field = change.field;
             const oldVal = change.old_value;
             const newVal = change.new_value;
 
@@ -490,7 +490,7 @@
                 return renderImagesDiff(oldVal, newVal);
             }
 
-            if (field === 'aplus') {
+            if (field === 'a_plus' || field === 'aplus') {
                 return renderAplusDiff(oldVal, newVal, change.id);
             }
 
@@ -533,32 +533,64 @@
             try { oldImgs = JSON.parse(oldVal) || []; } catch (e) {}
             try { newImgs = JSON.parse(newVal) || []; } catch (e) {}
 
-            const removed = oldImgs.filter(u => !newImgs.includes(u));
-            const added = newImgs.filter(u => !oldImgs.includes(u));
+            // Normalize URLs for comparison (strip params)
+            function normUrl(u) { return u.split("?")[0]; }
+            const oldNorm = oldImgs.map(normUrl);
+            const newNorm = newImgs.map(normUrl);
 
-            let html = '';
-            if (removed.length > 0) {
-                html += '<div class="diff-images-section"><div class="diff-images-label diff-images-label-removed">Entfernt:</div><div class="diff-images-row">';
-                removed.forEach(u => { html += '<img src="' + esc(u) + '" class="diff-img diff-img-removed" alt="Entferntes Bild">'; });
-                html += '</div></div>';
-            }
-            if (added.length > 0) {
-                html += '<div class="diff-images-section"><div class="diff-images-label diff-images-label-added">Hinzugefügt:</div><div class="diff-images-row">';
-                added.forEach(u => { html += '<img src="' + esc(u) + '" class="diff-img diff-img-added" alt="Neues Bild">'; });
-                html += '</div></div>';
-            }
-            if (!html) html = '<div class="diff-inline" style="color:#484f58;">Keine sichtbaren Bildänderungen</div>';
+            const removed = oldImgs.filter((u, i) => !newNorm.includes(normUrl(u)));
+            const added = newImgs.filter((u, i) => !oldNorm.includes(normUrl(u)));
+            const reordered = removed.length === 0 && added.length === 0 && oldNorm.join() !== newNorm.join();
+
+            let html = '<div style="display:flex;flex-direction:column;gap:12px;">';
+
+            // Show before/after side by side
+            html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">';
+            html += '<div><div style="font-size:11px;color:#f85149;font-weight:600;margin-bottom:6px;">VORHER (' + oldImgs.length + ' Bilder)</div><div style="display:flex;gap:4px;flex-wrap:wrap;">';
+            oldImgs.forEach((u, i) => {
+                const isRemoved = !newNorm.includes(normUrl(u));
+                const border = isRemoved ? '2px solid #f85149' : '1px solid #30363d';
+                html += '<div style="position:relative;"><img src="' + esc(u) + '" style="width:60px;height:60px;object-fit:cover;border-radius:4px;border:' + border + ';"><div style="position:absolute;bottom:2px;right:2px;background:#0d1117;color:#8b949e;font-size:9px;padding:1px 4px;border-radius:2px;">' + (i+1) + '</div></div>';
+            });
+            html += '</div></div>';
+
+            html += '<div><div style="font-size:11px;color:#3fb950;font-weight:600;margin-bottom:6px;">NACHHER (' + newImgs.length + ' Bilder)</div><div style="display:flex;gap:4px;flex-wrap:wrap;">';
+            newImgs.forEach((u, i) => {
+                const isAdded = !oldNorm.includes(normUrl(u));
+                const border = isAdded ? '2px solid #3fb950' : '1px solid #30363d';
+                html += '<div style="position:relative;"><img src="' + esc(u) + '" style="width:60px;height:60px;object-fit:cover;border-radius:4px;border:' + border + ';"><div style="position:absolute;bottom:2px;right:2px;background:#0d1117;color:#8b949e;font-size:9px;padding:1px 4px;border-radius:2px;">' + (i+1) + '</div></div>';
+            });
+            html += '</div></div></div>';
+
+            if (reordered) html += '<div style="font-size:12px;color:#eab308;">↔ Bildreihenfolge wurde geändert</div>';
+            html += '</div>';
             return html;
         }
 
         function renderAplusDiff(oldVal, newVal, id) {
-            const toggleId = 'aplus-' + id;
-            let html = '<div style="color:#e6edf3; font-size:14px;">A+ Content wurde geändert</div>';
-            html += '<button class="aplus-toggle" onclick="toggleAplus(\'' + toggleId + '\', this)">Details anzeigen</button>';
-            html += '<div class="aplus-detail" id="' + toggleId + '">';
-            html += '<div class="aplus-panel"><div class="aplus-panel-label aplus-panel-label-old">Vorher</div><pre>' + esc(oldVal || '') + '</pre></div>';
-            html += '<div class="aplus-panel"><div class="aplus-panel-label aplus-panel-label-new">Nachher</div><pre>' + esc(newVal || '') + '</pre></div>';
-            html += '</div>';
+            let oldImgs = [], newImgs = [];
+            try { oldImgs = JSON.parse(oldVal) || []; } catch (e) {}
+            try { newImgs = JSON.parse(newVal) || []; } catch (e) {}
+            if (typeof oldImgs === 'string') try { oldImgs = JSON.parse(oldImgs); } catch (e) {}
+            if (typeof newImgs === 'string') try { newImgs = JSON.parse(newImgs); } catch (e) {}
+
+            function normUrl(u) { return String(u).split("?")[0]; }
+            const oldNorm = (oldImgs || []).map(normUrl);
+            const newNorm = (newImgs || []).map(normUrl);
+
+            let html = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">';
+            html += '<div><div style="font-size:11px;color:#f85149;font-weight:600;margin-bottom:6px;">VORHER (' + oldNorm.length + ' A+ Bilder)</div><div style="display:flex;gap:4px;flex-wrap:wrap;">';
+            (oldImgs || []).forEach(u => {
+                const gone = !newNorm.includes(normUrl(u));
+                html += '<img src="' + esc(u) + '" style="width:80px;height:50px;object-fit:cover;border-radius:4px;border:' + (gone ? '2px solid #f85149' : '1px solid #30363d') + ';">';
+            });
+            html += '</div></div>';
+            html += '<div><div style="font-size:11px;color:#3fb950;font-weight:600;margin-bottom:6px;">NACHHER (' + newNorm.length + ' A+ Bilder)</div><div style="display:flex;gap:4px;flex-wrap:wrap;">';
+            (newImgs || []).forEach(u => {
+                const isNew = !oldNorm.includes(normUrl(u));
+                html += '<img src="' + esc(u) + '" style="width:80px;height:50px;object-fit:cover;border-radius:4px;border:' + (isNew ? '2px solid #3fb950' : '1px solid #30363d') + ';">';
+            });
+            html += '</div></div></div>';
             return html;
         }
 
@@ -640,12 +672,12 @@
 
             let html = '<div class="timeline">';
             changes.forEach(change => {
-                const color = dotColor(change.field_name);
+                const color = dotColor(change.field);
                 html += '<div class="timeline-entry">';
                 html += '<div class="timeline-dot" style="background:' + color + ';"></div>';
                 html += '<div class="timeline-card">';
                 html += '<div class="timeline-card-header">';
-                html += '<span class="field-badge ' + fieldClass(change.field_name) + '">' + fieldLabel(change.field_name) + '</span>';
+                html += '<span class="field-badge ' + fieldClass(change.field) + '">' + fieldLabel(change.field) + '</span>';
                 html += '<span class="timeline-date">' + formatDate(change.detected_at) + '</span>';
                 html += '</div>';
                 html += renderDiff(change);
