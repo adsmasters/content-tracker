@@ -48,9 +48,9 @@ Deno.serve(async (req: Request) => {
 
     // Load client info (marketplace + name for Slack channel)
     const clientIds = [...new Set(products.map((p: any) => p.client_id))];
-    const { data: clients } = await sb.from("ct_clients").select("id, marketplace, name").in("id", clientIds);
-    const clientMap: Record<string, { marketplace: string; name: string }> = {};
-    (clients || []).forEach((c: any) => { clientMap[c.id] = { marketplace: c.marketplace || "DE", name: c.name || "" }; });
+    const { data: clients } = await sb.from("ct_clients").select("id, marketplace, name, track_bullet_order").in("id", clientIds);
+    const clientMap: Record<string, { marketplace: string; name: string; trackBulletOrder: boolean }> = {};
+    (clients || []).forEach((c: any) => { clientMap[c.id] = { marketplace: c.marketplace || "DE", name: c.name || "", trackBulletOrder: !!c.track_bullet_order }; });
 
     // Collect changes per client for Slack notifications
     const changesByClient: Record<string, Array<{ asin: string; title: string; field: string }>> = {};
@@ -124,8 +124,9 @@ Deno.serve(async (req: Request) => {
             return a.every((v, i) => v === b[i]);
           }
 
-          const oldBullets = normalizeArr(prev.bullets || []);
-          const newBulletsNorm = normalizeArr(bulletsArr);
+          const trackOrder = clientInfo.trackBulletOrder;
+          const oldBullets = trackOrder ? normalizeArr(prev.bullets || []) : normalizeArr(prev.bullets || []).sort();
+          const newBulletsNorm = trackOrder ? normalizeArr(bulletsArr) : normalizeArr(bulletsArr).sort();
           const oldImages = normalizeUrls(prev.images || []).sort();
           const newImagesNorm = normalizeUrls(imagesArr).sort();
           let oldAplus: string[] = [];
