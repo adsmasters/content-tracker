@@ -190,6 +190,23 @@ Deno.serve(async (req: Request) => {
       }
     }
 
+    // Cleanup: delete old snapshots and changes based on client retention_days
+    try {
+      const { data: allClients } = await sb.from("ct_clients").select("id, retention_days");
+      for (const c of (allClients || [])) {
+        const days = c.retention_days || 30;
+        const cutoff = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+        const { data: oldProducts } = await sb.from("ct_products").select("id").eq("client_id", c.id);
+        const productIds = (oldProducts || []).map((p: any) => p.id);
+        if (productIds.length > 0) {
+          await sb.from("ct_changes").delete().in("product_id", productIds).lt("detected_at", cutoff);
+          await sb.from("ct_snapshots").delete().in("product_id", productIds).lt("fetched_at", cutoff);
+        }
+      }
+    } catch (e) {
+      console.error("Cleanup error:", e);
+    }
+
     const hasMore = (batch + 1) * batchSize < (totalCount || 0);
 
     return new Response(
