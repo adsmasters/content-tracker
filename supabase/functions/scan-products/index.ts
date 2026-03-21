@@ -112,15 +112,35 @@ Deno.serve(async (req: Request) => {
         const snapId = newSnap?.id;
 
         if (prev && snapId) {
+          // Normalize for comparison: trim strings, strip URL params, sort arrays
+          function normalizeArr(arr: any[]): string[] {
+            return (arr || []).map((s: any) => String(s).trim());
+          }
+          function normalizeUrls(arr: any[]): string[] {
+            return (arr || []).map((s: any) => String(s).trim().split("?")[0]);
+          }
+          function arraysEqual(a: string[], b: string[]): boolean {
+            if (a.length !== b.length) return false;
+            return a.every((v, i) => v === b[i]);
+          }
+
+          const oldBullets = normalizeArr(prev.bullets || []);
+          const newBulletsNorm = normalizeArr(bulletsArr);
+          const oldImages = normalizeUrls(prev.images || []);
+          const newImagesNorm = normalizeUrls(imagesArr);
+          let oldAplus: string[] = [];
+          try { oldAplus = normalizeUrls(JSON.parse(prev.a_plus_html || "[]")); } catch { oldAplus = []; }
+          const newAplusNorm = normalizeUrls(aPlusArr);
+
           const checks = [
-            { field: "title", oldVal: prev.title || "", newVal: title },
-            { field: "bullets", oldVal: JSON.stringify(prev.bullets || []), newVal: JSON.stringify(bulletsArr) },
-            { field: "images", oldVal: JSON.stringify(prev.images || []), newVal: JSON.stringify(imagesArr) },
-            { field: "a_plus", oldVal: prev.a_plus_html || "[]", newVal: JSON.stringify(aPlusArr) },
+            { field: "title", changed: (prev.title || "").trim() !== title.trim(), oldVal: prev.title || "", newVal: title },
+            { field: "bullets", changed: !arraysEqual(oldBullets, newBulletsNorm), oldVal: JSON.stringify(prev.bullets || []), newVal: JSON.stringify(bulletsArr) },
+            { field: "images", changed: !arraysEqual(oldImages, newImagesNorm), oldVal: JSON.stringify(prev.images || []), newVal: JSON.stringify(imagesArr) },
+            { field: "a_plus", changed: !arraysEqual(oldAplus, newAplusNorm), oldVal: prev.a_plus_html || "[]", newVal: JSON.stringify(aPlusArr) },
           ];
 
           for (const check of checks) {
-            if (check.oldVal !== check.newVal) {
+            if (check.changed) {
               await sb.from("ct_changes").insert({
                 product_id: product.id,
                 snapshot_id: snapId,

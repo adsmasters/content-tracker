@@ -833,15 +833,26 @@
 
                     // Compare with previous snapshot and create change records
                     if (prevSnapshot) {
+                        function normArr(arr) { return (Array.isArray(arr) ? arr : JSON.parse(arr || '[]')).map(s => String(s).trim()); }
+                        function normUrls(arr) { return normArr(arr).map(s => s.split('?')[0]); }
+                        function arrEq(a, b) { return a.length === b.length && a.every((v, i) => v === b[i]); }
+
+                        const oldBullets = normArr(prevSnapshot.bullets);
+                        const curBullets = normArr(newBullets);
+                        const oldImages = normUrls(prevSnapshot.images);
+                        const curImages = normUrls(newImages);
+                        const oldAplus = normUrls(prevSnapshot.a_plus_html);
+                        const curAplus = normUrls(newAplus);
+
                         const fields = [
-                            { name: 'title', oldVal: prevSnapshot.title || '', newVal: newTitle },
-                            { name: 'bullets', oldVal: prevSnapshot.bullets || '[]', newVal: newBullets },
-                            { name: 'images', oldVal: JSON.stringify(JSON.parse(prevSnapshot.images || '[]')), newVal: newImages },
-                            { name: 'a_plus', oldVal: prevSnapshot.a_plus_html || '[]', newVal: newAplus }
+                            { name: 'title', changed: (prevSnapshot.title || '').trim() !== newTitle.trim(), oldVal: prevSnapshot.title || '', newVal: newTitle },
+                            { name: 'bullets', changed: !arrEq(oldBullets, curBullets), oldVal: JSON.stringify(prevSnapshot.bullets || []), newVal: newBullets },
+                            { name: 'images', changed: !arrEq(oldImages, curImages), oldVal: JSON.stringify(prevSnapshot.images || []), newVal: newImages },
+                            { name: 'a_plus', changed: !arrEq(oldAplus, curAplus), oldVal: prevSnapshot.a_plus_html || '[]', newVal: newAplus }
                         ];
 
                         for (const field of fields) {
-                            if (field.oldVal !== field.newVal) {
+                            if (field.changed) {
                                 changesCount++;
                                 await sb.from('ct_changes').insert({
                                     product_id: product.id,
