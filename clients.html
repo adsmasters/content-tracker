@@ -468,10 +468,20 @@
                 <option value="90">90 Tage</option>
                 <option value="365">1 Jahr</option>
             </select>
-            <label style="margin-top:8px;display:flex;align-items:center;gap:8px;cursor:pointer;">
-                <input type="checkbox" id="clientTrackBulletOrder" style="width:16px;height:16px;cursor:pointer;">
-                <span style="font-size:13px;">Bullet-Point Reihenfolge als Änderung tracken</span>
-            </label>
+            <div style="margin-top:8px;display:flex;flex-direction:column;gap:6px;">
+                <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+                    <input type="checkbox" id="clientTrackBulletOrder" style="width:16px;height:16px;cursor:pointer;">
+                    <span style="font-size:13px;">Bullet-Point Reihenfolge als Änderung tracken</span>
+                </label>
+                <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+                    <input type="checkbox" id="clientTrackImageOrder" style="width:16px;height:16px;cursor:pointer;">
+                    <span style="font-size:13px;">Bilder-Reihenfolge als Änderung tracken</span>
+                </label>
+                <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+                    <input type="checkbox" id="clientTrackAplusOrder" style="width:16px;height:16px;cursor:pointer;">
+                    <span style="font-size:13px;">A+ Content Reihenfolge als Änderung tracken</span>
+                </label>
+            </div>
             <div style="background:#21262d;border:1px solid #30363d;border-radius:6px;padding:10px 12px;margin-top:8px;font-size:12px;color:#8b949e;">
                 <strong style="color:#eab308;">⚠ Slack-Benachrichtigung:</strong><br>
                 1. Slack-Channel muss <strong style="color:#e6edf3;">exakt</strong> so heißen wie der Kunde (kleingeschrieben, Leerzeichen → Bindestriche). Beispiel: Kunde "Clementoni" → Channel <strong style="color:#e6edf3;">#clementoni</strong><br>
@@ -605,7 +615,7 @@
                     '<td>' + s.count + '</td>' +
                     '<td>' + lastScan + '</td>' +
                     '<td class="actions-cell">' +
-                        '<button class="btn-sm" onclick="editClient(\'' + c.id + '\',\'' + escAttr(c.name) + '\',\'' + escAttr(c.marketplace) + '\',' + (c.retention_days || 30) + ',' + (c.track_bullet_order ? 'true' : 'false') + ')">Bearbeiten</button>' +
+                        '<button class="btn-sm" onclick="editClient(\'' + c.id + '\',\'' + escAttr(c.name) + '\',\'' + escAttr(c.marketplace) + '\',' + (c.retention_days || 30) + ',' + (c.track_bullet_order ? 'true' : 'false') + ',' + (c.track_image_order ? 'true' : 'false') + ',' + (c.track_aplus_order ? 'true' : 'false') + ')">Bearbeiten</button>' +
                         '<button class="btn-sm danger" onclick="deleteClient(\'' + c.id + '\',\'' + escAttr(c.name) + '\')">Löschen</button>' +
                     '</td>' +
                     '</tr>';
@@ -628,6 +638,8 @@
             document.getElementById('clientMarketplace').value = 'DE';
             document.getElementById('clientRetention').value = '30';
             document.getElementById('clientTrackBulletOrder').checked = false;
+            document.getElementById('clientTrackImageOrder').checked = false;
+            document.getElementById('clientTrackAplusOrder').checked = false;
             document.getElementById('clientError').style.display = 'none';
             document.getElementById('modalClient').classList.add('open');
         });
@@ -641,6 +653,8 @@
             const marketplace = document.getElementById('clientMarketplace').value;
             const retention_days = parseInt(document.getElementById('clientRetention').value) || 30;
             const track_bullet_order = document.getElementById('clientTrackBulletOrder').checked;
+            const track_image_order = document.getElementById('clientTrackImageOrder').checked;
+            const track_aplus_order = document.getElementById('clientTrackAplusOrder').checked;
             const errEl = document.getElementById('clientError');
 
             if (!name) {
@@ -650,14 +664,14 @@
             }
 
             if (editingClientId) {
-                const { error } = await sb.from('ct_clients').update({ name, marketplace, retention_days, track_bullet_order }).eq('id', editingClientId);
+                const { error } = await sb.from('ct_clients').update({ name, marketplace, retention_days, track_bullet_order, track_image_order, track_aplus_order }).eq('id', editingClientId);
                 if (error) {
                     errEl.textContent = 'Fehler: ' + error.message;
                     errEl.style.display = 'block';
                     return;
                 }
             } else {
-                const { error } = await sb.from('ct_clients').insert({ name, marketplace, retention_days, track_bullet_order });
+                const { error } = await sb.from('ct_clients').insert({ name, marketplace, retention_days, track_bullet_order, track_image_order, track_aplus_order });
                 if (error) {
                     errEl.textContent = 'Fehler: ' + error.message;
                     errEl.style.display = 'block';
@@ -669,13 +683,15 @@
             loadClients();
         });
 
-        window.editClient = function(id, name, marketplace, retentionDays, trackBulletOrder) {
+        window.editClient = function(id, name, marketplace, retentionDays, trackBulletOrder, trackImageOrder, trackAplusOrder) {
             editingClientId = id;
             document.getElementById('modalClientTitle').textContent = 'Kunde bearbeiten';
             document.getElementById('clientName').value = name;
             document.getElementById('clientMarketplace').value = marketplace;
             document.getElementById('clientRetention').value = String(retentionDays || 30);
             document.getElementById('clientTrackBulletOrder').checked = !!trackBulletOrder;
+            document.getElementById('clientTrackImageOrder').checked = !!trackImageOrder;
+            document.getElementById('clientTrackAplusOrder').checked = !!trackAplusOrder;
             document.getElementById('clientError').style.display = 'none';
             document.getElementById('modalClient').classList.add('open');
         };
@@ -723,7 +739,7 @@
             // Get client marketplace
             const { data: clientData } = await sb
                 .from('ct_clients')
-                .select('marketplace, track_bullet_order')
+                .select('marketplace, track_bullet_order, track_image_order, track_aplus_order')
                 .eq('id', activeClientId)
                 .single();
 
@@ -847,10 +863,12 @@
                         const trackOrder = !!clientData.track_bullet_order;
                         const oldBullets = trackOrder ? normArr(prevSnapshot.bullets) : normArr(prevSnapshot.bullets).sort();
                         const curBullets = trackOrder ? normArr(newBullets) : normArr(newBullets).sort();
-                        const oldImages = normUrls(prevSnapshot.images).sort();
-                        const curImages = normUrls(newImages).sort();
-                        const oldAplus = normUrls(prevSnapshot.a_plus_html).sort();
-                        const curAplus = normUrls(newAplus).sort();
+                        const trackImgOrder = !!clientData.track_image_order;
+                        const trackAplusOrder = !!clientData.track_aplus_order;
+                        const oldImages = trackImgOrder ? normUrls(prevSnapshot.images) : normUrls(prevSnapshot.images).sort();
+                        const curImages = trackImgOrder ? normUrls(newImages) : normUrls(newImages).sort();
+                        const oldAplus = trackAplusOrder ? normUrls(prevSnapshot.a_plus_html) : normUrls(prevSnapshot.a_plus_html).sort();
+                        const curAplus = trackAplusOrder ? normUrls(newAplus) : normUrls(newAplus).sort();
 
                         const fields = [
                             { name: 'title', changed: (prevSnapshot.title || '').trim() !== newTitle.trim(), oldVal: prevSnapshot.title || '', newVal: newTitle },

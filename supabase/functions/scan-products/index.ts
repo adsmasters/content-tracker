@@ -48,9 +48,9 @@ Deno.serve(async (req: Request) => {
 
     // Load client info (marketplace + name for Slack channel)
     const clientIds = [...new Set(products.map((p: any) => p.client_id))];
-    const { data: clients } = await sb.from("ct_clients").select("id, marketplace, name, track_bullet_order").in("id", clientIds);
-    const clientMap: Record<string, { marketplace: string; name: string; trackBulletOrder: boolean }> = {};
-    (clients || []).forEach((c: any) => { clientMap[c.id] = { marketplace: c.marketplace || "DE", name: c.name || "", trackBulletOrder: !!c.track_bullet_order }; });
+    const { data: clients } = await sb.from("ct_clients").select("id, marketplace, name, track_bullet_order, track_image_order, track_aplus_order").in("id", clientIds);
+    const clientMap: Record<string, { marketplace: string; name: string; trackBulletOrder: boolean; trackImageOrder: boolean; trackAplusOrder: boolean }> = {};
+    (clients || []).forEach((c: any) => { clientMap[c.id] = { marketplace: c.marketplace || "DE", name: c.name || "", trackBulletOrder: !!c.track_bullet_order, trackImageOrder: !!c.track_image_order, trackAplusOrder: !!c.track_aplus_order }; });
 
     // Collect changes per client for Slack notifications
     const changesByClient: Record<string, Array<{ asin: string; title: string; field: string }>> = {};
@@ -124,14 +124,16 @@ Deno.serve(async (req: Request) => {
             return a.every((v, i) => v === b[i]);
           }
 
-          const trackOrder = clientInfo.trackBulletOrder;
-          const oldBullets = trackOrder ? normalizeArr(prev.bullets || []) : normalizeArr(prev.bullets || []).sort();
-          const newBulletsNorm = trackOrder ? normalizeArr(bulletsArr) : normalizeArr(bulletsArr).sort();
-          const oldImages = normalizeUrls(prev.images || []).sort();
-          const newImagesNorm = normalizeUrls(imagesArr).sort();
+          const trackBulletOrd = clientInfo.trackBulletOrder;
+          const trackImgOrd = clientInfo.trackImageOrder;
+          const trackAplusOrd = clientInfo.trackAplusOrder;
+          const oldBullets = trackBulletOrd ? normalizeArr(prev.bullets || []) : normalizeArr(prev.bullets || []).sort();
+          const newBulletsNorm = trackBulletOrd ? normalizeArr(bulletsArr) : normalizeArr(bulletsArr).sort();
+          const oldImages = trackImgOrd ? normalizeUrls(prev.images || []) : normalizeUrls(prev.images || []).sort();
+          const newImagesNorm = trackImgOrd ? normalizeUrls(imagesArr) : normalizeUrls(imagesArr).sort();
           let oldAplus: string[] = [];
-          try { oldAplus = normalizeUrls(JSON.parse(prev.a_plus_html || "[]")).sort(); } catch { oldAplus = []; }
-          const newAplusNorm = normalizeUrls(aPlusArr).sort();
+          try { oldAplus = trackAplusOrd ? normalizeUrls(JSON.parse(prev.a_plus_html || "[]")) : normalizeUrls(JSON.parse(prev.a_plus_html || "[]")).sort(); } catch { oldAplus = []; }
+          const newAplusNorm = trackAplusOrd ? normalizeUrls(aPlusArr) : normalizeUrls(aPlusArr).sort();
 
           const checks = [
             { field: "title", changed: (prev.title || "").trim() !== title.trim(), oldVal: prev.title || "", newVal: title },
