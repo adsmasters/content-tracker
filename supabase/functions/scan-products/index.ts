@@ -126,11 +126,11 @@ Deno.serve(async (req: Request) => {
 
           const oldBullets = normalizeArr(prev.bullets || []);
           const newBulletsNorm = normalizeArr(bulletsArr);
-          const oldImages = normalizeUrls(prev.images || []);
-          const newImagesNorm = normalizeUrls(imagesArr);
+          const oldImages = normalizeUrls(prev.images || []).sort();
+          const newImagesNorm = normalizeUrls(imagesArr).sort();
           let oldAplus: string[] = [];
-          try { oldAplus = normalizeUrls(JSON.parse(prev.a_plus_html || "[]")); } catch { oldAplus = []; }
-          const newAplusNorm = normalizeUrls(aPlusArr);
+          try { oldAplus = normalizeUrls(JSON.parse(prev.a_plus_html || "[]")).sort(); } catch { oldAplus = []; }
+          const newAplusNorm = normalizeUrls(aPlusArr).sort();
 
           const checks = [
             { field: "title", changed: (prev.title || "").trim() !== title.trim(), oldVal: prev.title || "", newVal: title },

@@ -839,10 +839,10 @@
 
                         const oldBullets = normArr(prevSnapshot.bullets);
                         const curBullets = normArr(newBullets);
-                        const oldImages = normUrls(prevSnapshot.images);
-                        const curImages = normUrls(newImages);
-                        const oldAplus = normUrls(prevSnapshot.a_plus_html);
-                        const curAplus = normUrls(newAplus);
+                        const oldImages = normUrls(prevSnapshot.images).sort();
+                        const curImages = normUrls(newImages).sort();
+                        const oldAplus = normUrls(prevSnapshot.a_plus_html).sort();
+                        const curAplus = normUrls(newAplus).sort();
 
                         const fields = [
                             { name: 'title', changed: (prevSnapshot.title || '').trim() !== newTitle.trim(), oldVal: prevSnapshot.title || '', newVal: newTitle },
