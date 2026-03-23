@@ -426,8 +426,9 @@
                     <button class="btn-primary" id="btnAddAsins">+ ASINs hinzufügen</button>
                 </div>
             </div>
-            <div style="margin-bottom:12px;">
-                <input type="text" id="asinSearch" placeholder="ASIN oder Titel suchen..." oninput="filterAsins()" style="width:100%;max-width:400px;padding:8px 12px;background:var(--bg-primary);border:1px solid var(--border);border-radius:6px;color:var(--text-primary);font-size:13px;">
+            <div style="margin-bottom:14px;position:relative;max-width:450px;">
+                <span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--text-secondary);font-size:15px;pointer-events:none;">&#128269;</span>
+                <input type="text" id="asinSearch" placeholder="ASIN oder Titel suchen..." oninput="filterAsins()" style="width:100%;padding:10px 12px 10px 36px;background:var(--bg-secondary);border:2px solid var(--border);border-radius:8px;color:var(--text-primary);font-size:14px;transition:border-color 0.2s;" onfocus="this.style.borderColor='#3551FF'" onblur="this.style.borderColor=''">
             </div>
             <div class="table-card">
                 <table>
