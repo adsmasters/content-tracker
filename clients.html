@@ -5,18 +5,39 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Content Tracker — Produkte</title>
     <style>
+        :root {
+            --bg-primary: #ffffff; --bg-secondary: #f6f8fa; --bg-hover: #eef1f5;
+            --border: #d0d7de; --text-primary: #1f2328; --text-secondary: #656d76;
+            --accent: #3551FF; --accent-hover: #2a41cc;
+            --error: #cf222e; --success: #1a7f37; --success-bg: #1a7f3711;
+            --badge-bg: #e8e8e8; --row-border: #e8eaed;
+            --status-active-bg: #dafbe1; --status-active-color: #1a7f37;
+            --status-paused-bg: #eef1f5; --status-paused-color: #656d76;
+            --modal-overlay: rgba(0,0,0,0.3);
+        }
+        [data-theme="dark"] {
+            --bg-primary: #0d1117; --bg-secondary: #161b22; --bg-hover: #1c2129;
+            --border: #30363d; --text-primary: #e6edf3; --text-secondary: #8b949e;
+            --accent: #3551FF; --accent-hover: #2a44dd;
+            --error: #f85149; --success: #3fb950; --success-bg: #0d3320;
+            --badge-bg: #30363d; --row-border: #21262d;
+            --status-active-bg: #0d3320; --status-active-color: #3fb950;
+            --status-paused-bg: #272c33; --status-paused-color: #8b949e;
+            --modal-overlay: rgba(0,0,0,0.6);
+        }
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             font-family: Arial, sans-serif;
-            background: #0d1117;
-            color: #e6edf3;
+            background: var(--bg-primary);
+            color: var(--text-primary);
             min-height: 100vh;
+            transition: background 0.2s, color 0.2s;
         }
 
         /* Top Bar */
         .topbar {
-            background: #161b22;
-            border-bottom: 1px solid #30363d;
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border);
             padding: 0 32px;
             height: 56px;
             display: flex;
@@ -34,7 +55,7 @@
         .topbar-logo {
             font-size: 18px;
             font-weight: 700;
-            color: #3551FF;
+            color: var(--accent);
             text-decoration: none;
         }
         .topbar-nav {
@@ -42,19 +63,19 @@
             gap: 24px;
         }
         .topbar-nav a {
-            color: #8b949e;
+            color: var(--text-secondary);
             text-decoration: none;
             font-size: 14px;
             font-weight: 500;
             transition: color 0.2s;
         }
         .topbar-nav a:hover, .topbar-nav a.active {
-            color: #e6edf3;
+            color: var(--text-primary);
         }
         .btn-logout {
             background: transparent;
-            border: 1px solid #30363d;
-            color: #8b949e;
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
             padding: 6px 16px;
             border-radius: 6px;
             font-size: 13px;
@@ -62,8 +83,8 @@
             transition: all 0.2s;
         }
         .btn-logout:hover {
-            color: #f85149;
-            border-color: #f85149;
+            color: var(--error);
+            border-color: var(--error);
         }
 
         /* Main Content */
@@ -95,8 +116,8 @@
             gap: 10px;
         }
         .badge-count {
-            background: #30363d;
-            color: #8b949e;
+            background: var(--badge-bg);
+            color: var(--text-secondary);
             font-size: 13px;
             padding: 2px 10px;
             border-radius: 12px;
@@ -104,8 +125,8 @@
         }
         .btn-back {
             background: transparent;
-            border: 1px solid #30363d;
-            color: #8b949e;
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
             padding: 6px 14px;
             border-radius: 6px;
             font-size: 13px;
@@ -113,13 +134,13 @@
             transition: all 0.2s;
         }
         .btn-back:hover {
-            color: #e6edf3;
-            border-color: #e6edf3;
+            color: var(--text-primary);
+            border-color: var(--text-primary);
         }
 
         /* Buttons */
         .btn-primary {
-            background: #3551FF;
+            background: var(--accent);
             color: #fff;
             border: none;
             padding: 9px 20px;
@@ -129,9 +150,9 @@
             cursor: pointer;
             transition: background 0.2s;
         }
-        .btn-primary:hover { background: #2a44dd; }
+        .btn-primary:hover { background: var(--accent-hover); }
         .btn-scan {
-            background: #3551FF;
+            background: var(--accent);
             color: #fff;
             border: none;
             padding: 9px 20px;
@@ -142,24 +163,24 @@
             transition: background 0.2s;
             box-shadow: 0 0 12px rgba(53,81,255,0.3);
         }
-        .btn-scan:hover { background: #2a44dd; }
+        .btn-scan:hover { background: var(--accent-hover); }
         .btn-sm {
             padding: 5px 12px;
             font-size: 12px;
             border-radius: 5px;
-            border: 1px solid #30363d;
+            border: 1px solid var(--border);
             background: transparent;
-            color: #8b949e;
+            color: var(--text-secondary);
             cursor: pointer;
             transition: all 0.2s;
         }
-        .btn-sm:hover { color: #e6edf3; border-color: #e6edf3; }
-        .btn-sm.danger:hover { color: #f85149; border-color: #f85149; }
+        .btn-sm:hover { color: var(--text-primary); border-color: var(--text-primary); }
+        .btn-sm.danger:hover { color: var(--error); border-color: var(--error); }
 
         /* Table */
         .table-card {
-            background: #161b22;
-            border: 1px solid #30363d;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
             border-radius: 10px;
             overflow: hidden;
         }
@@ -172,32 +193,32 @@
             padding: 12px 16px;
             font-size: 12px;
             font-weight: 600;
-            color: #8b949e;
+            color: var(--text-secondary);
             text-transform: uppercase;
             letter-spacing: 0.5px;
-            border-bottom: 1px solid #30363d;
-            background: #161b22;
+            border-bottom: 1px solid var(--border);
+            background: var(--bg-secondary);
         }
         tbody td {
             padding: 12px 16px;
             font-size: 14px;
-            border-bottom: 1px solid #21262d;
+            border-bottom: 1px solid var(--row-border);
             vertical-align: middle;
         }
         tbody tr:last-child td { border-bottom: none; }
-        tbody tr:hover { background: #1c2129; }
+        tbody tr:hover { background: var(--bg-hover); }
         .client-link {
-            color: #3551FF;
+            color: var(--accent);
             cursor: pointer;
             font-weight: 600;
             text-decoration: none;
         }
         .client-link:hover { text-decoration: underline; }
-        .text-muted { color: #8b949e; font-size: 13px; }
+        .text-muted { color: var(--text-secondary); font-size: 13px; }
         .empty-state {
             text-align: center;
             padding: 48px 16px;
-            color: #8b949e;
+            color: var(--text-secondary);
             font-size: 14px;
         }
 
@@ -209,23 +230,23 @@
             font-size: 12px;
             font-weight: 600;
         }
-        .status-badge.active { background: #0d3320; color: #3fb950; }
-        .status-badge.paused { background: #272c33; color: #8b949e; }
+        .status-badge.active { background: var(--status-active-bg); color: var(--status-active-color); }
+        .status-badge.paused { background: var(--status-paused-bg); color: var(--status-paused-color); }
 
         /* Modal */
         .modal-overlay {
             display: none;
             position: fixed;
             inset: 0;
-            background: rgba(0,0,0,0.6);
+            background: var(--modal-overlay);
             z-index: 200;
             align-items: center;
             justify-content: center;
         }
         .modal-overlay.open { display: flex; }
         .modal {
-            background: #161b22;
-            border: 1px solid #30363d;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
             border-radius: 12px;
             padding: 28px 32px;
             width: 100%;
@@ -238,7 +259,7 @@
         .modal label {
             display: block;
             font-size: 13px;
-            color: #8b949e;
+            color: var(--text-secondary);
             margin-bottom: 6px;
             margin-top: 14px;
         }
@@ -246,16 +267,16 @@
         .modal input, .modal select, .modal textarea {
             width: 100%;
             padding: 9px 12px;
-            background: #0d1117;
-            border: 1px solid #30363d;
+            background: var(--bg-primary);
+            border: 1px solid var(--border);
             border-radius: 6px;
-            color: #e6edf3;
+            color: var(--text-primary);
             font-size: 14px;
             font-family: Arial, sans-serif;
             outline: none;
         }
         .modal input:focus, .modal select:focus, .modal textarea:focus {
-            border-color: #3551FF;
+            border-color: var(--accent);
         }
         .modal textarea { resize: vertical; min-height: 120px; }
         .modal-actions {
@@ -267,15 +288,15 @@
         .btn-cancel {
             padding: 9px 20px;
             background: transparent;
-            border: 1px solid #30363d;
-            color: #8b949e;
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
             border-radius: 6px;
             font-size: 14px;
             cursor: pointer;
         }
-        .btn-cancel:hover { color: #e6edf3; border-color: #e6edf3; }
+        .btn-cancel:hover { color: var(--text-primary); border-color: var(--text-primary); }
         .modal-error {
-            color: #f85149;
+            color: var(--error);
             font-size: 13px;
             margin-top: 8px;
             display: none;
@@ -298,8 +319,8 @@
         }
         .scan-overlay.open { display: flex; }
         .scan-card {
-            background: #161b22;
-            border: 1px solid #30363d;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
             border-radius: 12px;
             padding: 32px 40px;
             width: 100%;
@@ -314,21 +335,21 @@
         .scan-progress-bar {
             width: 100%;
             height: 8px;
-            background: #30363d;
+            background: var(--border);
             border-radius: 4px;
             overflow: hidden;
             margin-bottom: 16px;
         }
         .scan-progress-fill {
             height: 100%;
-            background: #3551FF;
+            background: var(--accent);
             border-radius: 4px;
             transition: width 0.3s ease;
             width: 0%;
         }
         .scan-status {
             font-size: 14px;
-            color: #8b949e;
+            color: var(--text-secondary);
             margin-bottom: 6px;
         }
         .scan-product-title {
@@ -343,26 +364,26 @@
         .btn-cancel-scan {
             padding: 8px 20px;
             background: transparent;
-            border: 1px solid #30363d;
-            color: #8b949e;
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
             border-radius: 6px;
             font-size: 13px;
             cursor: pointer;
             transition: all 0.2s;
         }
-        .btn-cancel-scan:hover { color: #f85149; border-color: #f85149; }
+        .btn-cancel-scan:hover { color: var(--error); border-color: var(--error); }
 
         /* Toast */
         .toast {
             position: fixed;
             bottom: 24px;
             right: 24px;
-            background: #161b22;
-            border: 1px solid #30363d;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
             border-radius: 8px;
             padding: 14px 22px;
             font-size: 14px;
-            color: #e6edf3;
+            color: var(--text-primary);
             z-index: 400;
             box-shadow: 0 4px 20px rgba(0,0,0,0.4);
             transform: translateY(100px);
@@ -374,6 +395,19 @@
 </head>
 <body>
 
+    <script>
+        // Theme - Light is default
+        const savedTheme = localStorage.getItem('ct_theme') || 'light';
+        document.documentElement.setAttribute('data-theme', savedTheme);
+        function toggleTheme() {
+            const current = document.documentElement.getAttribute('data-theme') || 'light';
+            const next = current === 'dark' ? 'light' : 'dark';
+            localStorage.setItem('ct_theme', next);
+            document.documentElement.setAttribute('data-theme', next);
+            document.getElementById('themeToggle').innerHTML = next === 'dark' ? '&#9788;' : '&#9790;';
+        }
+    </script>
+
     <!-- Top Bar -->
     <div class="topbar">
         <div class="topbar-left">
@@ -384,8 +418,15 @@
                 <a href="help.html">Hilfe</a>
             </nav>
         </div>
-        <button class="btn-logout" id="btnLogout">Logout</button>
+        <div style="display:flex;align-items:center;gap:8px;">
+            <button class="theme-toggle" id="themeToggle" onclick="toggleTheme()" style="background:transparent;border:1px solid var(--border);color:var(--text-secondary);padding:6px 10px;border-radius:6px;cursor:pointer;font-size:16px;line-height:1;">&#9790;</button>
+            <button class="btn-logout" id="btnLogout">Logout</button>
+        </div>
     </div>
+
+    <script>
+        document.getElementById('themeToggle').innerHTML = (localStorage.getItem('ct_theme') || 'light') === 'dark' ? '&#9788;' : '&#9790;';
+    </script>
 
     <div class="container">
 
@@ -428,7 +469,7 @@
             </div>
             <div style="margin-bottom:14px;position:relative;max-width:450px;">
                 <span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--text-secondary);font-size:15px;pointer-events:none;">&#128269;</span>
-                <input type="text" id="asinSearch" placeholder="ASIN oder Titel suchen..." oninput="filterAsins()" style="width:100%;padding:10px 12px 10px 36px;background:var(--bg-secondary);border:2px solid var(--border);border-radius:8px;color:var(--text-primary);font-size:14px;transition:border-color 0.2s;" onfocus="this.style.borderColor='#3551FF'" onblur="this.style.borderColor=''">
+                <input type="text" id="asinSearch" placeholder="ASIN oder Titel suchen..." oninput="filterAsins()" style="width:100%;padding:10px 12px 10px 36px;background:var(--bg-secondary);border:2px solid var(--border);border-radius:8px;color:var(--text-primary);font-size:14px;transition:border-color 0.2s;" onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor=''">
             </div>
             <div class="table-card">
                 <table>
@@ -486,10 +527,10 @@
                     <span style="font-size:13px;">A+ Content Reihenfolge als Änderung tracken</span>
                 </label>
             </div>
-            <div style="background:#21262d;border:1px solid #30363d;border-radius:6px;padding:10px 12px;margin-top:8px;font-size:12px;color:#8b949e;">
+            <div style="background:var(--row-border);border:1px solid var(--border);border-radius:6px;padding:10px 12px;margin-top:8px;font-size:12px;color:var(--text-secondary);">
                 <strong style="color:#eab308;">⚠ Slack-Benachrichtigung:</strong><br>
-                1. Slack-Channel muss <strong style="color:#e6edf3;">exakt</strong> so heißen wie der Kunde (kleingeschrieben, Leerzeichen → Bindestriche). Beispiel: Kunde "Clementoni" → Channel <strong style="color:#e6edf3;">#clementoni</strong><br>
-                2. Bot im Channel aktivieren: <strong style="color:#e6edf3;">@Content Tracker</strong> im Channel als Nachricht senden → Slack fragt ob der Bot eingeladen werden soll → bestätigen
+                1. Slack-Channel muss <strong style="color:var(--text-primary);">exakt</strong> so heißen wie der Kunde (kleingeschrieben, Leerzeichen → Bindestriche). Beispiel: Kunde "Clementoni" → Channel <strong style="color:var(--text-primary);">#clementoni</strong><br>
+                2. Bot im Channel aktivieren: <strong style="color:var(--text-primary);">@Content Tracker</strong> im Channel als Nachricht senden → Slack fragt ob der Bot eingeladen werden soll → bestätigen
             </div>
             <div class="modal-error" id="clientError"></div>
             <div class="modal-actions">
@@ -504,8 +545,8 @@
         <div class="modal">
             <h3>ASINs hinzufügen</h3>
             <div style="display:flex;gap:4px;margin-bottom:12px;">
-                <button class="btn-tab active" id="tabManual" style="flex:1;padding:8px;border:1px solid #30363d;background:#21262d;color:#e6edf3;border-radius:6px;cursor:pointer;font-size:13px;">Manuell</button>
-                <button class="btn-tab" id="tabCsv" style="flex:1;padding:8px;border:1px solid #30363d;background:transparent;color:#8b949e;border-radius:6px;cursor:pointer;font-size:13px;">CSV Upload</button>
+                <button class="btn-tab active" id="tabManual" style="flex:1;padding:8px;border:1px solid var(--border);background:var(--row-border);color:var(--text-primary);border-radius:6px;cursor:pointer;font-size:13px;">Manuell</button>
+                <button class="btn-tab" id="tabCsv" style="flex:1;padding:8px;border:1px solid var(--border);background:transparent;color:var(--text-secondary);border-radius:6px;cursor:pointer;font-size:13px;">CSV Upload</button>
             </div>
             <div id="manualTab">
                 <label for="asinInput">ASINs (eine pro Zeile)</label>
@@ -513,13 +554,13 @@
             </div>
             <div id="csvTab" style="display:none;">
                 <label>CSV-Datei mit ASIN-Spalte hochladen</label>
-                <div style="border:2px dashed #30363d;border-radius:8px;padding:24px;text-align:center;cursor:pointer;margin-top:8px;" id="csvDropZone">
-                    <div style="color:#8b949e;font-size:13px;">CSV hierher ziehen oder klicken</div>
+                <div style="border:2px dashed var(--border);border-radius:8px;padding:24px;text-align:center;cursor:pointer;margin-top:8px;" id="csvDropZone">
+                    <div style="color:var(--text-secondary);font-size:13px;">CSV hierher ziehen oder klicken</div>
                     <input type="file" accept=".csv" id="csvFileInput" style="display:none;">
                 </div>
                 <div id="csvPreview" style="display:none;margin-top:12px;">
-                    <span style="color:#3fb950;font-size:13px;" id="csvCount"></span>
-                    <pre id="csvPreviewText" style="background:#0d1117;border:1px solid #30363d;border-radius:6px;padding:8px;margin-top:8px;font-size:12px;color:#8b949e;max-height:150px;overflow-y:auto;"></pre>
+                    <span style="color:var(--success);font-size:13px;" id="csvCount"></span>
+                    <pre id="csvPreviewText" style="background:var(--bg-primary);border:1px solid var(--border);border-radius:6px;padding:8px;margin-top:8px;font-size:12px;color:var(--text-secondary);max-height:150px;overflow-y:auto;"></pre>
                 </div>
             </div>
             <div class="modal-error" id="asinError"></div>
@@ -990,8 +1031,8 @@
                 const lastScan = p.last_scanned_at ? formatDate(p.last_scanned_at) : '<span class="text-muted">—</span>';
 
                 html += '<tr>' +
-                    '<td><a href="product.html?id=' + p.id + '" style="color:#3551FF;font-weight:700;text-decoration:none;">' + escHtml(p.asin) + '</a></td>' +
-                    '<td>' + (p.title ? '<a href="product.html?id=' + p.id + '" style="color:#e6edf3;text-decoration:none;">' + escHtml(p.title) + '</a>' : '<span class="text-muted">Scan ausstehend</span>') + '</td>' +
+                    '<td><a href="product.html?id=' + p.id + '" style="color:var(--accent);font-weight:700;text-decoration:none;">' + escHtml(p.asin) + '</a></td>' +
+                    '<td>' + (p.title ? '<a href="product.html?id=' + p.id + '" style="color:var(--text-primary);text-decoration:none;">' + escHtml(p.title) + '</a>' : '<span class="text-muted">Scan ausstehend</span>') + '</td>' +
                     '<td><span class="status-badge ' + badgeClass + '">' + badgeLabel + '</span></td>' +
                     '<td>' + lastScan + '</td>' +
                     '<td class="actions-cell">' +
@@ -1015,21 +1056,21 @@
 
         tabManual.addEventListener('click', function() {
             manualTab.style.display = ''; csvTab.style.display = 'none';
-            tabManual.style.background = '#21262d'; tabManual.style.color = '#e6edf3';
-            tabCsv.style.background = 'transparent'; tabCsv.style.color = '#8b949e';
+            tabManual.style.background = 'var(--row-border)'; tabManual.style.color = 'var(--text-primary)';
+            tabCsv.style.background = 'transparent'; tabCsv.style.color = 'var(--text-secondary)';
             csvAsins = [];
         });
         tabCsv.addEventListener('click', function() {
             manualTab.style.display = 'none'; csvTab.style.display = '';
-            tabCsv.style.background = '#21262d'; tabCsv.style.color = '#e6edf3';
-            tabManual.style.background = 'transparent'; tabManual.style.color = '#8b949e';
+            tabCsv.style.background = 'var(--row-border)'; tabCsv.style.color = 'var(--text-primary)';
+            tabManual.style.background = 'transparent'; tabManual.style.color = 'var(--text-secondary)';
         });
 
         csvDropZone.addEventListener('click', () => csvFileInput.click());
-        csvDropZone.addEventListener('dragover', e => { e.preventDefault(); csvDropZone.style.borderColor = '#3551FF'; });
-        csvDropZone.addEventListener('dragleave', () => { csvDropZone.style.borderColor = '#30363d'; });
+        csvDropZone.addEventListener('dragover', e => { e.preventDefault(); csvDropZone.style.borderColor = 'var(--accent)'; });
+        csvDropZone.addEventListener('dragleave', () => { csvDropZone.style.borderColor = 'var(--border)'; });
         csvDropZone.addEventListener('drop', e => {
-            e.preventDefault(); csvDropZone.style.borderColor = '#30363d';
+            e.preventDefault(); csvDropZone.style.borderColor = 'var(--border)';
             if (e.dataTransfer.files.length) parseCsvFile(e.dataTransfer.files[0]);
         });
         csvFileInput.addEventListener('change', () => { if (csvFileInput.files.length) parseCsvFile(csvFileInput.files[0]); });
