@@ -6,14 +6,41 @@
     <title>Produkt – Content Tracker</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
     <style>
+        :root {
+            --bg-primary: #ffffff; --bg-secondary: #f6f8fa; --bg-hover: #eef1f5;
+            --border: #d0d7de; --text-primary: #1f2328; --text-secondary: #656d76;
+            --accent: #3551FF; --accent-hover: #2a41cc;
+            --error: #cf222e; --success: #1a7f37; --success-bg: #dafbe1;
+            --badge-bg: #e8e8e8; --row-border: #e8eaed;
+            --status-active-bg: #dafbe1; --status-active-color: #1a7f37;
+            --status-paused-bg: #eef1f5; --status-paused-color: #656d76;
+            --modal-overlay: rgba(0,0,0,0.3);
+            --diff-del-bg: #ffebe9; --diff-add-bg: #dafbe1;
+            --diff-del-color: #cf222e; --diff-add-color: #1a7f37;
+            --diff-del-border: #ffcecb; --diff-add-border: #aceebb;
+        }
+        [data-theme="dark"] {
+            --bg-primary: #0d1117; --bg-secondary: #161b22; --bg-hover: #1c2129;
+            --border: #30363d; --text-primary: #e6edf3; --text-secondary: #8b949e;
+            --accent: #3551FF; --accent-hover: #2a44dd;
+            --error: #f85149; --success: #3fb950; --success-bg: #0d3320;
+            --badge-bg: #30363d; --row-border: #21262d;
+            --status-active-bg: #0d3320; --status-active-color: #3fb950;
+            --status-paused-bg: #272c33; --status-paused-color: #8b949e;
+            --modal-overlay: rgba(0,0,0,0.6);
+            --diff-del-bg: #3d1f1f; --diff-add-bg: #1f3d1f;
+            --diff-del-color: #f85149; --diff-add-color: #3fb950;
+            --diff-del-border: #3d1f1f; --diff-add-border: #1f3d1f;
+        }
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
         body {
             font-family: Arial, sans-serif;
-            background: #0d1117;
-            color: #e6edf3;
+            background: var(--bg-primary);
+            color: var(--text-primary);
             min-height: 100vh;
+            transition: background 0.2s, color 0.2s;
         }
-        a { color: #3551FF; text-decoration: none; }
+        a { color: var(--accent); text-decoration: none; }
         a:hover { text-decoration: underline; }
 
         /* Top bar */
@@ -23,35 +50,35 @@
             justify-content: space-between;
             padding: 0 24px;
             height: 56px;
-            background: #161b22;
-            border-bottom: 1px solid #30363d;
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border);
             position: sticky;
             top: 0;
             z-index: 100;
         }
         .topbar-left { display: flex; align-items: center; gap: 32px; }
-        .logo { font-size: 18px; font-weight: 700; color: #3551FF; }
+        .logo { font-size: 18px; font-weight: 700; color: var(--accent); }
         .nav { display: flex; gap: 24px; }
         .nav a {
-            color: #8b949e;
+            color: var(--text-secondary);
             font-size: 14px;
             padding: 4px 0;
             border-bottom: 2px solid transparent;
             transition: color .15s;
         }
-        .nav a:hover { color: #e6edf3; text-decoration: none; }
-        .nav a.active { color: #e6edf3; border-bottom-color: #3551FF; }
+        .nav a:hover { color: var(--text-primary); text-decoration: none; }
+        .nav a.active { color: var(--text-primary); border-bottom-color: var(--accent); }
         .btn-logout {
             background: transparent;
-            border: 1px solid #30363d;
-            color: #8b949e;
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
             padding: 6px 14px;
             border-radius: 6px;
             font-size: 13px;
             cursor: pointer;
             transition: border-color .15s, color .15s;
         }
-        .btn-logout:hover { border-color: #8b949e; color: #e6edf3; }
+        .btn-logout:hover { border-color: var(--text-secondary); color: var(--text-primary); }
 
         /* Main content */
         .main { max-width: 960px; margin: 0 auto; padding: 32px 20px; }
@@ -61,17 +88,17 @@
             display: inline-flex;
             align-items: center;
             gap: 6px;
-            color: #8b949e;
+            color: var(--text-secondary);
             font-size: 14px;
             margin-bottom: 20px;
             transition: color .15s;
         }
-        .back-link:hover { color: #e6edf3; text-decoration: none; }
+        .back-link:hover { color: var(--text-primary); text-decoration: none; }
 
         /* Product header */
         .product-header {
-            background: #161b22;
-            border: 1px solid #30363d;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
             border-radius: 10px;
             padding: 24px;
             display: flex;
@@ -84,25 +111,25 @@
             border-radius: 8px;
             object-fit: cover;
             flex-shrink: 0;
-            background: #21262d;
+            background: var(--row-border);
         }
         .product-image-placeholder {
             width: 100px;
             height: 100px;
             border-radius: 8px;
-            background: #21262d;
+            background: var(--row-border);
             flex-shrink: 0;
             display: flex;
             align-items: center;
             justify-content: center;
-            color: #484f58;
+            color: var(--text-secondary);
             font-size: 32px;
         }
         .product-info { flex: 1; min-width: 0; }
         .product-asin {
             font-family: monospace;
             font-size: 13px;
-            color: #8b949e;
+            color: var(--text-secondary);
             margin-bottom: 4px;
         }
         .product-title {
@@ -118,7 +145,7 @@
             flex-wrap: wrap;
             margin-bottom: 8px;
             font-size: 13px;
-            color: #8b949e;
+            color: var(--text-secondary);
         }
         .badge {
             display: inline-block;
@@ -131,11 +158,11 @@
         }
         .badge-marketplace {
             background: rgba(53, 81, 255, .15);
-            color: #3551FF;
+            color: var(--accent);
         }
         .badge-active {
-            background: rgba(63, 185, 80, .15);
-            color: #3fb950;
+            background: var(--status-active-bg);
+            color: var(--status-active-color);
         }
         .badge-paused {
             background: rgba(234, 179, 8, .15);
@@ -143,11 +170,11 @@
         }
         .product-scan {
             font-size: 12px;
-            color: #484f58;
+            color: var(--text-secondary);
             margin-bottom: 12px;
         }
         .btn-scan {
-            background: #3551FF;
+            background: var(--accent);
             color: #fff;
             border: none;
             padding: 8px 18px;
@@ -168,7 +195,7 @@
             top: 6px;
             bottom: 0;
             width: 2px;
-            background: #30363d;
+            background: var(--border);
         }
         .timeline-entry {
             position: relative;
@@ -181,12 +208,12 @@
             width: 12px;
             height: 12px;
             border-radius: 50%;
-            border: 2px solid #0d1117;
+            border: 2px solid var(--bg-primary);
             z-index: 1;
         }
         .timeline-card {
-            background: #161b22;
-            border: 1px solid #30363d;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
             border-radius: 8px;
             padding: 18px 20px;
         }
@@ -204,27 +231,27 @@
             font-size: 12px;
             font-weight: 600;
         }
-        .field-titel { background: rgba(53, 81, 255, .15); color: #3551FF; }
-        .field-bullets { background: rgba(63, 185, 80, .15); color: #3fb950; }
+        .field-titel { background: rgba(53, 81, 255, .15); color: var(--accent); }
+        .field-bullets { background: rgba(63, 185, 80, .15); color: var(--success); }
         .field-bilder { background: rgba(234, 179, 8, .15); color: #eab308; }
         .field-aplus { background: rgba(168, 85, 247, .15); color: #a855f7; }
         .timeline-date {
             font-size: 13px;
-            color: #8b949e;
+            color: var(--text-secondary);
         }
 
         /* Diff: Title */
         .diff-inline { font-size: 14px; line-height: 1.7; }
         .diff-del {
-            background: #3d1f1f;
-            color: #f85149;
+            background: var(--diff-del-bg);
+            color: var(--diff-del-color);
             text-decoration: line-through;
             padding: 1px 3px;
             border-radius: 3px;
         }
         .diff-add {
-            background: #1f3d1f;
-            color: #3fb950;
+            background: var(--diff-add-bg);
+            color: var(--diff-add-color);
             padding: 1px 3px;
             border-radius: 3px;
         }
@@ -238,12 +265,12 @@
             width: 18px;
             text-align: center;
         }
-        .diff-bullet-removed .diff-bullet-prefix { color: #f85149; }
-        .diff-bullet-added .diff-bullet-prefix { color: #3fb950; }
+        .diff-bullet-removed .diff-bullet-prefix { color: var(--error); }
+        .diff-bullet-added .diff-bullet-prefix { color: var(--success); }
         .diff-bullet-modified .diff-bullet-prefix { color: #eab308; }
-        .diff-bullet-removed { color: #f85149; }
-        .diff-bullet-added { color: #3fb950; }
-        .diff-bullet-modified { color: #e6edf3; }
+        .diff-bullet-removed { color: var(--error); }
+        .diff-bullet-added { color: var(--success); }
+        .diff-bullet-modified { color: var(--text-primary); }
 
         /* Diff: Images */
         .diff-images-section { margin-bottom: 10px; }
@@ -252,8 +279,8 @@
             font-weight: 600;
             margin-bottom: 8px;
         }
-        .diff-images-label-removed { color: #f85149; }
-        .diff-images-label-added { color: #3fb950; }
+        .diff-images-label-removed { color: var(--error); }
+        .diff-images-label-added { color: var(--success); }
         .diff-images-row { display: flex; gap: 10px; flex-wrap: wrap; }
         .diff-img {
             width: 80px;
@@ -262,14 +289,14 @@
             border-radius: 6px;
             border: 2px solid;
         }
-        .diff-img-removed { border-color: #f85149; }
-        .diff-img-added { border-color: #3fb950; }
+        .diff-img-removed { border-color: var(--error); }
+        .diff-img-added { border-color: var(--success); }
 
         /* Diff: A+ Content */
         .aplus-toggle {
-            background: #21262d;
-            border: 1px solid #30363d;
-            color: #e6edf3;
+            background: var(--bg-hover);
+            border: 1px solid var(--border);
+            color: var(--text-primary);
             padding: 6px 14px;
             border-radius: 6px;
             font-size: 13px;
@@ -277,7 +304,7 @@
             margin-top: 8px;
             transition: background .15s;
         }
-        .aplus-toggle:hover { background: #30363d; }
+        .aplus-toggle:hover { background: var(--border); }
         .aplus-detail { display: none; margin-top: 14px; }
         .aplus-detail.open { display: flex; gap: 16px; flex-wrap: wrap; }
         .aplus-panel { flex: 1; min-width: 280px; }
@@ -288,16 +315,16 @@
             padding: 6px 10px;
             border-radius: 6px 6px 0 0;
         }
-        .aplus-panel-label-old { background: #3d1f1f; color: #f85149; }
-        .aplus-panel-label-new { background: #1f3d1f; color: #3fb950; }
+        .aplus-panel-label-old { background: var(--diff-del-bg); color: var(--error); }
+        .aplus-panel-label-new { background: var(--diff-add-bg); color: var(--success); }
         .aplus-panel pre {
-            background: #0d1117;
-            border: 1px solid #30363d;
+            background: var(--bg-primary);
+            border: 1px solid var(--border);
             border-top: none;
             border-radius: 0 0 6px 6px;
             padding: 12px;
             font-size: 12px;
-            color: #8b949e;
+            color: var(--text-secondary);
             overflow-x: auto;
             white-space: pre-wrap;
             word-break: break-word;
@@ -309,7 +336,7 @@
         .empty-state {
             text-align: center;
             padding: 60px 20px;
-            color: #484f58;
+            color: var(--text-secondary);
             font-size: 15px;
         }
 
@@ -317,7 +344,7 @@
         .loading {
             text-align: center;
             padding: 40px;
-            color: #8b949e;
+            color: var(--text-secondary);
             font-size: 14px;
         }
 
@@ -330,6 +357,19 @@
     </style>
 </head>
 <body>
+
+    <script>
+        const savedTheme = localStorage.getItem('ct_theme') || 'light';
+        document.documentElement.setAttribute('data-theme', savedTheme);
+        function toggleTheme() {
+            const current = document.documentElement.getAttribute('data-theme') || 'light';
+            const next = current === 'dark' ? 'light' : 'dark';
+            localStorage.setItem('ct_theme', next);
+            document.documentElement.setAttribute('data-theme', next);
+            document.getElementById('themeToggle').innerHTML = next === 'dark' ? '&#9788;' : '&#9790;';
+        }
+    </script>
+
     <!-- Top bar -->
     <header class="topbar">
         <div class="topbar-left">
@@ -340,8 +380,15 @@
                 <a href="help.html">Hilfe</a>
             </nav>
         </div>
-        <button class="btn-logout" onclick="sessionStorage.removeItem('ct_auth'); location.href='index.html';">Logout</button>
+        <div style="display:flex;align-items:center;gap:8px;">
+            <button id="themeToggle" onclick="toggleTheme()" style="background:transparent;border:1px solid var(--border);color:var(--text-secondary);padding:6px 10px;border-radius:6px;cursor:pointer;font-size:16px;line-height:1;">&#9790;</button>
+            <button class="btn-logout" onclick="sessionStorage.removeItem('ct_auth'); location.href='index.html';">Logout</button>
+        </div>
     </header>
+
+    <script>
+        document.getElementById('themeToggle').innerHTML = (localStorage.getItem('ct_theme') || 'light') === 'dark' ? '&#9788;' : '&#9790;';
+    </script>
 
     <div class="main">
         <a href="javascript:history.back()" class="back-link">&larr; Zur&uuml;ck</a>
@@ -467,8 +514,8 @@
         }
 
         function dotColor(field) {
-            const map = { title: '#3551FF', bullets: '#3fb950', images: '#eab308', aplus: '#a855f7' };
-            return map[field] || '#3551FF';
+            const map = { title: 'var(--accent)', bullets: 'var(--success)', images: '#eab308', aplus: '#a855f7' };
+            return map[field] || 'var(--accent)';
         }
 
         // --- Render diff based on type ---
@@ -500,13 +547,13 @@
 
         function renderBeforeAfter(label, oldText, newText) {
             let html = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">';
-            html += '<div style="background:#1a0000;border:1px solid #3d1f1f;border-radius:6px;padding:12px;">';
-            html += '<div style="font-size:11px;color:#f85149;font-weight:600;margin-bottom:6px;">VORHER</div>';
-            html += '<div style="font-size:13px;color:#e6edf3;line-height:1.5;">' + esc(oldText) + '</div>';
+            html += '<div style="background:var(--diff-del-bg);border:1px solid var(--diff-del-border);border-radius:6px;padding:12px;">';
+            html += '<div style="font-size:11px;color:var(--error);font-weight:600;margin-bottom:6px;">VORHER</div>';
+            html += '<div style="font-size:13px;color:var(--text-primary);line-height:1.5;">' + esc(oldText) + '</div>';
             html += '</div>';
-            html += '<div style="background:#001a00;border:1px solid #1f3d1f;border-radius:6px;padding:12px;">';
-            html += '<div style="font-size:11px;color:#3fb950;font-weight:600;margin-bottom:6px;">NACHHER</div>';
-            html += '<div style="font-size:13px;color:#e6edf3;line-height:1.5;">' + esc(newText) + '</div>';
+            html += '<div style="background:var(--diff-add-bg);border:1px solid var(--diff-add-border);border-radius:6px;padding:12px;">';
+            html += '<div style="font-size:11px;color:var(--success);font-weight:600;margin-bottom:6px;">NACHHER</div>';
+            html += '<div style="font-size:13px;color:var(--text-primary);line-height:1.5;">' + esc(newText) + '</div>';
             html += '</div></div>';
             return html;
         }
@@ -519,18 +566,18 @@
             let html = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">';
 
             // Vorher
-            html += '<div style="background:#1a0000;border:1px solid #3d1f1f;border-radius:6px;padding:12px;">';
-            html += '<div style="font-size:11px;color:#f85149;font-weight:600;margin-bottom:8px;">VORHER (' + oldBullets.length + ' Bullets)</div>';
+            html += '<div style="background:var(--diff-del-bg);border:1px solid var(--diff-del-border);border-radius:6px;padding:12px;">';
+            html += '<div style="font-size:11px;color:var(--error);font-weight:600;margin-bottom:8px;">VORHER (' + oldBullets.length + ' Bullets)</div>';
             oldBullets.forEach(function(b, i) {
-                html += '<div style="font-size:12px;color:#e6edf3;padding:4px 0;border-bottom:1px solid #3d1f1f;line-height:1.4;">' + (i+1) + '. ' + esc(b) + '</div>';
+                html += '<div style="font-size:12px;color:var(--text-primary);padding:4px 0;border-bottom:1px solid var(--diff-del-border);line-height:1.4;">' + (i+1) + '. ' + esc(b) + '</div>';
             });
             html += '</div>';
 
             // Nachher
-            html += '<div style="background:#001a00;border:1px solid #1f3d1f;border-radius:6px;padding:12px;">';
-            html += '<div style="font-size:11px;color:#3fb950;font-weight:600;margin-bottom:8px;">NACHHER (' + newBullets.length + ' Bullets)</div>';
+            html += '<div style="background:var(--diff-add-bg);border:1px solid var(--diff-add-border);border-radius:6px;padding:12px;">';
+            html += '<div style="font-size:11px;color:var(--success);font-weight:600;margin-bottom:8px;">NACHHER (' + newBullets.length + ' Bullets)</div>';
             newBullets.forEach(function(b, i) {
-                html += '<div style="font-size:12px;color:#e6edf3;padding:4px 0;border-bottom:1px solid #1f3d1f;line-height:1.4;">' + (i+1) + '. ' + esc(b) + '</div>';
+                html += '<div style="font-size:12px;color:var(--text-primary);padding:4px 0;border-bottom:1px solid var(--diff-add-border);line-height:1.4;">' + (i+1) + '. ' + esc(b) + '</div>';
             });
             html += '</div></div>';
 
@@ -555,19 +602,19 @@
 
             // Show before/after side by side
             html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">';
-            html += '<div><div style="font-size:11px;color:#f85149;font-weight:600;margin-bottom:6px;">VORHER (' + oldImgs.length + ' Bilder)</div><div style="display:flex;gap:4px;flex-wrap:wrap;">';
+            html += '<div><div style="font-size:11px;color:var(--error);font-weight:600;margin-bottom:6px;">VORHER (' + oldImgs.length + ' Bilder)</div><div style="display:flex;gap:4px;flex-wrap:wrap;">';
             oldImgs.forEach((u, i) => {
                 const isRemoved = !newNorm.includes(normUrl(u));
-                const border = isRemoved ? '2px solid #f85149' : '1px solid #30363d';
-                html += '<div style="position:relative;"><img src="' + esc(u) + '" style="width:60px;height:60px;object-fit:cover;border-radius:4px;border:' + border + ';"><div style="position:absolute;bottom:2px;right:2px;background:#0d1117;color:#8b949e;font-size:9px;padding:1px 4px;border-radius:2px;">' + (i+1) + '</div></div>';
+                const border = isRemoved ? '2px solid var(--error)' : '1px solid var(--border)';
+                html += '<div style="position:relative;"><img src="' + esc(u) + '" style="width:60px;height:60px;object-fit:cover;border-radius:4px;border:' + border + ';"><div style="position:absolute;bottom:2px;right:2px;background:var(--bg-primary);color:var(--text-secondary);font-size:9px;padding:1px 4px;border-radius:2px;">' + (i+1) + '</div></div>';
             });
             html += '</div></div>';
 
-            html += '<div><div style="font-size:11px;color:#3fb950;font-weight:600;margin-bottom:6px;">NACHHER (' + newImgs.length + ' Bilder)</div><div style="display:flex;gap:4px;flex-wrap:wrap;">';
+            html += '<div><div style="font-size:11px;color:var(--success);font-weight:600;margin-bottom:6px;">NACHHER (' + newImgs.length + ' Bilder)</div><div style="display:flex;gap:4px;flex-wrap:wrap;">';
             newImgs.forEach((u, i) => {
                 const isAdded = !oldNorm.includes(normUrl(u));
-                const border = isAdded ? '2px solid #3fb950' : '1px solid #30363d';
-                html += '<div style="position:relative;"><img src="' + esc(u) + '" style="width:60px;height:60px;object-fit:cover;border-radius:4px;border:' + border + ';"><div style="position:absolute;bottom:2px;right:2px;background:#0d1117;color:#8b949e;font-size:9px;padding:1px 4px;border-radius:2px;">' + (i+1) + '</div></div>';
+                const border = isAdded ? '2px solid var(--success)' : '1px solid var(--border)';
+                html += '<div style="position:relative;"><img src="' + esc(u) + '" style="width:60px;height:60px;object-fit:cover;border-radius:4px;border:' + border + ';"><div style="position:absolute;bottom:2px;right:2px;background:var(--bg-primary);color:var(--text-secondary);font-size:9px;padding:1px 4px;border-radius:2px;">' + (i+1) + '</div></div>';
             });
             html += '</div></div></div>';
 
@@ -588,16 +635,16 @@
             const newNorm = (newImgs || []).map(normUrl);
 
             let html = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">';
-            html += '<div><div style="font-size:11px;color:#f85149;font-weight:600;margin-bottom:6px;">VORHER (' + oldNorm.length + ' A+ Bilder)</div><div style="display:flex;gap:4px;flex-wrap:wrap;">';
+            html += '<div><div style="font-size:11px;color:var(--error);font-weight:600;margin-bottom:6px;">VORHER (' + oldNorm.length + ' A+ Bilder)</div><div style="display:flex;gap:4px;flex-wrap:wrap;">';
             (oldImgs || []).forEach(u => {
                 const gone = !newNorm.includes(normUrl(u));
-                html += '<img src="' + esc(u) + '" style="width:80px;height:50px;object-fit:cover;border-radius:4px;border:' + (gone ? '2px solid #f85149' : '1px solid #30363d') + ';">';
+                html += '<img src="' + esc(u) + '" style="width:80px;height:50px;object-fit:cover;border-radius:4px;border:' + (gone ? '2px solid var(--error)' : '1px solid var(--border)') + ';">';
             });
             html += '</div></div>';
-            html += '<div><div style="font-size:11px;color:#3fb950;font-weight:600;margin-bottom:6px;">NACHHER (' + newNorm.length + ' A+ Bilder)</div><div style="display:flex;gap:4px;flex-wrap:wrap;">';
+            html += '<div><div style="font-size:11px;color:var(--success);font-weight:600;margin-bottom:6px;">NACHHER (' + newNorm.length + ' A+ Bilder)</div><div style="display:flex;gap:4px;flex-wrap:wrap;">';
             (newImgs || []).forEach(u => {
                 const isNew = !oldNorm.includes(normUrl(u));
-                html += '<img src="' + esc(u) + '" style="width:80px;height:50px;object-fit:cover;border-radius:4px;border:' + (isNew ? '2px solid #3fb950' : '1px solid #30363d') + ';">';
+                html += '<img src="' + esc(u) + '" style="width:80px;height:50px;object-fit:cover;border-radius:4px;border:' + (isNew ? '2px solid var(--success)' : '1px solid var(--border)') + ';">';
             });
             html += '</div></div></div>';
             return html;
@@ -653,7 +700,7 @@
                     '</div>' +
                     '<div class="product-scan">Letzter Scan: ' + lastScan + '</div>' +
                     '<button class="btn-scan" id="btnScanProduct">Jetzt scannen</button>' +
-                    '<a href="https://www.amazon.' + (product.marketplace === 'US' ? 'com' : product.marketplace === 'UK' ? 'co.uk' : (product.marketplace || 'de').toLowerCase()) + '/dp/' + esc(product.asin) + '" target="_blank" rel="noopener" style="display:inline-block;padding:8px 16px;background:#21262d;border:1px solid #30363d;border-radius:6px;color:#e6edf3;font-size:13px;font-weight:600;text-decoration:none;">Auf Amazon ansehen ↗</a>' +
+                    '<a href="https://www.amazon.' + (product.marketplace === 'US' ? 'com' : product.marketplace === 'UK' ? 'co.uk' : (product.marketplace || 'de').toLowerCase()) + '/dp/' + esc(product.asin) + '" target="_blank" rel="noopener" style="display:inline-block;padding:8px 16px;background:var(--bg-hover);border:1px solid var(--border);border-radius:6px;color:var(--text-primary);font-size:13px;font-weight:600;text-decoration:none;">Auf Amazon ansehen ↗</a>' +
                 '</div>';
 
             document.title = (product.asin || 'Produkt') + ' – Content Tracker';
@@ -714,23 +761,23 @@
             const snap = snaps[0];
             container.style.display = '';
 
-            let html = '<div style="background:#161b22;border:1px solid #30363d;border-radius:8px;padding:20px;margin-bottom:24px;">';
-            html += '<h3 style="font-size:16px;font-weight:600;margin-bottom:16px;color:#e6edf3;">Aktueller Zustand</h3>';
+            let html = '<div style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:8px;padding:20px;margin-bottom:24px;">';
+            html += '<h3 style="font-size:16px;font-weight:600;margin-bottom:16px;color:var(--text-primary);">Aktueller Zustand</h3>';
 
             // Title
             html += '<div style="margin-bottom:16px;">';
-            html += '<div style="font-size:11px;text-transform:uppercase;color:#8b949e;letter-spacing:0.5px;margin-bottom:4px;">Titel</div>';
-            html += '<div style="font-size:14px;color:#e6edf3;">' + esc(snap.title || '—') + '</div>';
+            html += '<div style="font-size:11px;text-transform:uppercase;color:var(--text-secondary);letter-spacing:0.5px;margin-bottom:4px;">Titel</div>';
+            html += '<div style="font-size:14px;color:var(--text-primary);">' + esc(snap.title || '—') + '</div>';
             html += '</div>';
 
             // Bullets
             const bullets = snap.bullets || [];
             if (bullets.length > 0) {
                 html += '<div style="margin-bottom:16px;">';
-                html += '<div style="font-size:11px;text-transform:uppercase;color:#8b949e;letter-spacing:0.5px;margin-bottom:4px;">Bullet Points (' + bullets.length + ')</div>';
+                html += '<div style="font-size:11px;text-transform:uppercase;color:var(--text-secondary);letter-spacing:0.5px;margin-bottom:4px;">Bullet Points (' + bullets.length + ')</div>';
                 html += '<ul style="list-style:none;padding:0;">';
                 bullets.forEach(function(b) {
-                    html += '<li style="font-size:13px;color:#e6edf3;padding:6px 0;border-bottom:1px solid #21262d;">• ' + esc(b) + '</li>';
+                    html += '<li style="font-size:13px;color:var(--text-primary);padding:6px 0;border-bottom:1px solid var(--row-border);">• ' + esc(b) + '</li>';
                 });
                 html += '</ul></div>';
             }
@@ -739,10 +786,10 @@
             const images = snap.images || [];
             if (images.length > 0) {
                 html += '<div style="margin-bottom:16px;">';
-                html += '<div style="font-size:11px;text-transform:uppercase;color:#8b949e;letter-spacing:0.5px;margin-bottom:8px;">Bilder (' + images.length + ')</div>';
+                html += '<div style="font-size:11px;text-transform:uppercase;color:var(--text-secondary);letter-spacing:0.5px;margin-bottom:8px;">Bilder (' + images.length + ')</div>';
                 html += '<div style="display:flex;gap:8px;flex-wrap:wrap;">';
                 images.forEach(function(url) {
-                    html += '<img src="' + esc(url) + '" style="width:80px;height:80px;object-fit:cover;border-radius:6px;border:1px solid #30363d;">';
+                    html += '<img src="' + esc(url) + '" style="width:80px;height:80px;object-fit:cover;border-radius:6px;border:1px solid var(--border);">';
                 });
                 html += '</div></div>';
             }
@@ -752,15 +799,15 @@
             try { aPlusImages = JSON.parse(snap.a_plus_html || '[]'); } catch(e) {}
             if (aPlusImages.length > 0) {
                 html += '<div>';
-                html += '<div style="font-size:11px;text-transform:uppercase;color:#8b949e;letter-spacing:0.5px;margin-bottom:8px;">A+ Content Bilder (' + aPlusImages.length + ')</div>';
+                html += '<div style="font-size:11px;text-transform:uppercase;color:var(--text-secondary);letter-spacing:0.5px;margin-bottom:8px;">A+ Content Bilder (' + aPlusImages.length + ')</div>';
                 html += '<div style="display:flex;gap:8px;flex-wrap:wrap;">';
                 aPlusImages.forEach(function(url) {
-                    html += '<img src="' + esc(url) + '" style="width:120px;height:80px;object-fit:cover;border-radius:6px;border:1px solid #30363d;">';
+                    html += '<img src="' + esc(url) + '" style="width:120px;height:80px;object-fit:cover;border-radius:6px;border:1px solid var(--border);">';
                 });
                 html += '</div></div>';
             }
 
-            html += '<div style="margin-top:12px;font-size:11px;color:#484f58;">Snapshot vom ' + formatDate(snap.fetched_at) + '</div>';
+            html += '<div style="margin-top:12px;font-size:11px;color:var(--text-secondary);">Snapshot vom ' + formatDate(snap.fetched_at) + '</div>';
             html += '</div>';
 
             container.innerHTML = html;
