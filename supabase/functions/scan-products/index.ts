@@ -30,6 +30,7 @@ Deno.serve(async (req: Request) => {
     // Parse params
     let clientId: string | null = null;
     let scanAll = false;
+    let scanAllRemaining: string[] = [];
     try {
       const body = await req.json();
       clientId = body.client_id || null;
@@ -73,37 +74,20 @@ Deno.serve(async (req: Request) => {
         });
       }
 
-      // Scan first due client
+      // Scan first due client, pass rest as remaining
       clientId = dueClients[0];
-      const remainingClients = dueClients.slice(1);
-
-      // After responding, trigger self for remaining clients (fire-and-forget)
-      if (remainingClients.length > 0) {
-        // Use EdgeRuntime to call self for next client after this one finishes
-        // We do this via fetch at the end, non-blocking
-        setTimeout(async () => {
-          try {
-            await fetch(`${SUPABASE_URL}/functions/v1/scan-products`, {
-              method: "POST",
-              headers: {
-                "Authorization": `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({ client_id: remainingClients[0], remaining: remainingClients.slice(1) }),
-            });
-          } catch (e) {
-            console.error("Failed to trigger next client scan:", e);
-          }
-        }, 100);
-      }
+      // Store remaining for chain trigger at end
+      scanAllRemaining = dueClients.slice(1);
     }
 
-    // Handle chain: if remaining clients are passed, trigger next after scanning
-    let remainingClients: string[] = [];
-    try {
-      const body = JSON.parse(await req.clone().text());
-      remainingClients = body.remaining || [];
-    } catch { /* ignore */ }
+    // Handle chain: remaining clients from scan_all or from previous chain call
+    let remainingClients: string[] = scanAllRemaining;
+    if (remainingClients.length === 0) {
+      try {
+        const body = JSON.parse(await req.clone().text());
+        remainingClients = body.remaining || [];
+      } catch { /* ignore */ }
+    }
 
     // Build client map
     const clientMap: Record<string, any> = {};
@@ -174,13 +158,25 @@ Deno.serve(async (req: Request) => {
         if (!apiResp.ok) {
           console.error(`API error for ${product.asin}: ${apiResp.status}`);
           errors++;
-          await new Promise((r) => setTimeout(r, 1000));
+          // Update last_scanned_at so we don't retry endlessly
+          await sb.from("ct_products").update({ last_scanned_at: new Date().toISOString() }).eq("id", product.id);
+          if (apiResp.status === 429) {
+            console.error("Rate limit hit, pausing 5 seconds");
+            await new Promise((r) => setTimeout(r, 5000));
+          } else {
+            await new Promise((r) => setTimeout(r, 1000));
+          }
           continue;
         }
 
         const apiData = await apiResp.json();
         const d = apiData.data;
-        if (!d) { errors++; continue; }
+        if (!d) {
+          errors++;
+          // ASIN not found – update last_scanned_at to avoid blocking
+          await sb.from("ct_products").update({ last_scanned_at: new Date().toISOString() }).eq("id", product.id);
+          continue;
+        }
 
         const title = d.product_title || "";
         const bulletsArr = d.about_product || [];
@@ -286,11 +282,15 @@ Deno.serve(async (req: Request) => {
         const text = `:rotating_light: *Content Tracker: ${productCount} Produkt${productCount > 1 ? "e" : ""} mit Änderungen*\n\n${lines.join("\n")}\n\n<https://adsmasters.github.io/content-tracker/dashboard.html|→ Dashboard öffnen>`;
 
         try {
-          await fetch("https://slack.com/api/chat.postMessage", {
+          const slackResp = await fetch("https://slack.com/api/chat.postMessage", {
             method: "POST",
             headers: { "Authorization": `Bearer ${SLACK_BOT_TOKEN}`, "Content-Type": "application/json" },
             body: JSON.stringify({ channel: `#${channel}`, text, mrkdwn: true }),
           });
+          const slackData = await slackResp.json();
+          if (!slackData.ok) {
+            console.error(`Slack error for #${channel}: ${slackData.error} – Bot möglicherweise nicht im Channel`);
+          }
         } catch (e) {
           console.error(`Slack error for #${channel}:`, e);
         }
@@ -317,17 +317,26 @@ Deno.serve(async (req: Request) => {
 
     // Trigger next client in chain if remaining
     if (remainingClients.length > 0) {
-      try {
-        await fetch(`${SUPABASE_URL}/functions/v1/scan-products`, {
-          method: "POST",
-          headers: {
-            "Authorization": `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ client_id: remainingClients[0], remaining: remainingClients.slice(1) }),
-        });
-      } catch (e) {
-        console.error("Failed to trigger next client:", e);
+      let chainSuccess = false;
+      for (let retry = 0; retry < 3; retry++) {
+        try {
+          const chainResp = await fetch(`${SUPABASE_URL}/functions/v1/scan-products`, {
+            method: "POST",
+            headers: {
+              "Authorization": `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ client_id: remainingClients[0], remaining: remainingClients.slice(1) }),
+          });
+          if (chainResp.ok) { chainSuccess = true; break; }
+          console.error(`Chain trigger attempt ${retry + 1} failed: ${chainResp.status}`);
+        } catch (e) {
+          console.error(`Chain trigger attempt ${retry + 1} error:`, e);
+        }
+        await new Promise((r) => setTimeout(r, 2000));
+      }
+      if (!chainSuccess) {
+        console.error(`CRITICAL: Failed to trigger scan for remaining ${remainingClients.length} clients after 3 retries`);
       }
     }
 
