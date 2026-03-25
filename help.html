@@ -331,8 +331,10 @@
     <div class="card" id="auto-scan">
         <div class="card-title"><span class="num">3</span> Automatischer Scan</div>
         <ul>
-            <li>Alle Produkte werden täglich um <strong>7:00 Uhr</strong> automatisch gescannt</li>
-            <li>Manuelle Scans sind jederzeit möglich über "Scan starten" (pro Kunde) oder "Alle Kunden scannen" (Dashboard)</li>
+            <li>Automatischer Scan jeden Tag um <strong>7:00 Uhr UTC</strong></li>
+            <li><strong>Scan-Intervall pro Kunde:</strong> Einstellbar auf Täglich, Alle 2 Tage, Alle 3 Tage oder Wöchentlich. Kunden die laut Intervall noch nicht fällig sind werden beim automatischen Scan übersprungen.</li>
+            <li>Manuelle Scans sind jederzeit möglich über den <strong>"Scan starten"</strong> Button (pro Kunde) oder <strong>"Alle Kunden scannen"</strong> (Dashboard)</li>
+            <li><strong>Initialer Scan nötig:</strong> Nach dem Hinzufügen neuer ASINs muss einmal manuell gescannt werden. Der erste Scan speichert den aktuellen Zustand als Referenz -- ab dem zweiten Scan werden Änderungen erkannt.</li>
             <li>Bereits gescannte Produkte (letzte 24h) werden übersprungen</li>
         </ul>
     </div>
@@ -379,6 +381,7 @@
         <ul>
             <li><strong>Name</strong> — Kundenname (muss mit dem Slack-Channel übereinstimmen)</li>
             <li><strong>Marketplace</strong> — Amazon-Marktplatz (DE, US, UK, FR, IT, ES)</li>
+            <li><strong>Scan-Intervall</strong> — Wie oft der Kunde automatisch gescannt wird: Täglich, Alle 2 Tage, Alle 3 Tage oder Wöchentlich (alle 7 Tage). Standard: Täglich.</li>
             <li><strong>Änderungen aufbewahren</strong> — Wie lange Snapshots und Änderungen gespeichert werden (14/30/60/90/365 Tage). Standard: 30 Tage. Ältere Daten werden automatisch beim täglichen Scan gelöscht.</li>
             <li><strong>Bullet-Point Reihenfolge tracken</strong> — Wenn aktiviert, wird auch eine Umsortierung der Bullet Points als Änderung gemeldet. Standard: deaktiviert (nur inhaltliche Änderungen).</li>
         </ul>
@@ -426,6 +429,7 @@
             <li><strong>CSV Upload:</strong> CSV-Datei mit ASINs hochladen — ASINs werden automatisch erkannt, Duplikate übersprungen</li>
             <li><strong>Amazon-Link:</strong> Jede ASIN hat einen "Amazon ↗" Link direkt zur Produktseite</li>
             <li><strong>Einzelscan:</strong> Auf der Produkt-Detail-Seite kann jede ASIN einzeln gescannt werden ("Jetzt scannen")</li>
+            <li><strong>ASIN-Suchfeld:</strong> Über das Suchfeld auf der Kundenseite können ASINs schnell gefunden und gefiltert werden</li>
             <li><strong>Pausieren:</strong> ASINs können pausiert werden — pausierte ASINs werden beim Scan übersprungen</li>
             <li><strong>Löschen:</strong> Entfernt die ASIN und alle zugehörigen Snapshots und Änderungen</li>
         </ul>
