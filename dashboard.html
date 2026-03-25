@@ -587,92 +587,43 @@
     document.getElementById('filterField').addEventListener('change', loadChanges);
     document.getElementById('filterTime').addEventListener('change', loadChanges);
 
-    // Scan All Clients
-    let scanCancelled = false;
+    // Scan All Clients via Edge Function
     document.getElementById('btnScanAll').addEventListener('click', async function() {
-        const { data: products } = await sb.from('ct_products').select('id, asin, client_id, last_scanned_at').eq('status', 'active');
-        if (!products || products.length === 0) { alert('Keine aktiven Produkte.'); return; }
-
-        // Filter: only not scanned in last 24h
-        const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-        const toScan = products.filter(p => !p.last_scanned_at || p.last_scanned_at < yesterday);
-
-        if (toScan.length === 0) {
-            alert('Alle ' + products.length + ' Produkte wurden in den letzten 24h bereits gescannt.');
-            return;
-        }
-
-        // Get client marketplaces
-        const clientIds = [...new Set(toScan.map(p => p.client_id))];
-        const { data: clients } = await sb.from('ct_clients').select('id, marketplace');
-        const marketplaceMap = {};
-        (clients || []).forEach(c => { marketplaceMap[c.id] = ({ DE:'DE', US:'US', UK:'GB', FR:'FR', IT:'IT', ES:'ES' })[c.marketplace] || c.marketplace; });
-
-        scanCancelled = false;
         const progressDiv = document.getElementById('scanProgress');
         const progressBar = document.getElementById('scanProgressBar');
         const progressText = document.getElementById('scanProgressText');
         progressDiv.style.display = '';
+        progressBar.style.width = '0%';
+        progressText.textContent = 'Scan wird gestartet...';
         this.disabled = true;
 
-        let scanned = 0, changes = 0, errors = 0;
-        const total = toScan.length;
+        try {
+            const SUPABASE_URL = sb.supabaseUrl || 'https://lgrnmiszhhahfcmctmwo.supabase.co';
+            const response = await fetch(SUPABASE_URL + '/functions/v1/scan-products', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + sb.supabaseKey
+                },
+                body: JSON.stringify({ scan_all: true })
+            });
 
-        for (const product of toScan) {
-            if (scanCancelled) break;
-            progressText.textContent = 'ASIN ' + (scanned + 1) + '/' + total + ' — ' + product.asin;
-            progressBar.style.width = ((scanned / total) * 100) + '%';
-
-            try {
-                const country = marketplaceMap[product.client_id] || 'DE';
-                const resp = await fetch('https://real-time-amazon-data.p.rapidapi.com/product-details?asin=' + product.asin + '&country=' + country, {
-                    headers: { 'x-rapidapi-host': 'real-time-amazon-data.p.rapidapi.com', 'x-rapidapi-key': 'f8efc09e81msh6c57af2fcb726adp116390jsne4a9ac230e46' }
-                });
-                if (!resp.ok) { errors++; scanned++; continue; }
-                const d = (await resp.json()).data;
-                if (!d) { errors++; scanned++; continue; }
-
-                const title = d.product_title || '';
-                const newBullets = JSON.stringify(d.about_product || []);
-                const newImages = JSON.stringify(d.product_photos || []);
-                const newAplus = JSON.stringify(d.aplus_images || []);
-
-                const { data: lastSnap } = await sb.from('ct_snapshots').select('*').eq('product_id', product.id).order('fetched_at', { ascending: false }).limit(1);
-                const prev = lastSnap && lastSnap.length > 0 ? lastSnap[0] : null;
-
-                const { data: newSnap } = await sb.from('ct_snapshots').insert({
-                    product_id: product.id, title, bullets: d.about_product || [], images: d.product_photos || [], a_plus_html: newAplus
-                }).select('id').single();
-
-                if (prev && newSnap) {
-                    const fields = [
-                        { name: 'title', oldVal: prev.title || '', newVal: title },
-                        { name: 'bullets', oldVal: JSON.stringify(prev.bullets || []), newVal: newBullets },
-                        { name: 'images', oldVal: JSON.stringify(prev.images || []), newVal: newImages },
-                        { name: 'a_plus', oldVal: prev.a_plus_html || '[]', newVal: newAplus }
-                    ];
-                    for (const f of fields) {
-                        if (f.oldVal !== f.newVal) {
-                            await sb.from('ct_changes').insert({ product_id: product.id, snapshot_id: newSnap.id, field: f.name, old_value: f.oldVal, new_value: f.newVal });
-                            changes++;
-                        }
-                    }
-                }
-
-                await sb.from('ct_products').update({ title, image_url: (d.product_photos || [])[0] || null, last_scanned_at: new Date().toISOString() }).eq('id', product.id);
-                scanned++;
-                await new Promise(r => setTimeout(r, 1500));
-            } catch (e) { errors++; scanned++; }
+            const result = await response.json();
+            progressBar.style.width = '100%';
+            progressText.textContent = 'Fertig: ' + (result.scanned || 0) + ' gescannt, ' +
+                (result.changes_found || 0) + ' Änderungen' +
+                (result.errors > 0 ? ', ' + result.errors + ' Fehler' : '') +
+                (result.skipped > 0 ? ', ' + result.skipped + ' übersprungen' : '') +
+                (result.remaining_clients > 0 ? ' — weitere Kunden werden im Hintergrund gescannt' : '');
+        } catch (e) {
+            progressBar.style.width = '100%';
+            progressText.textContent = 'Scan fehlgeschlagen: ' + e.message;
         }
 
-        progressBar.style.width = '100%';
-        progressText.textContent = 'Fertig: ' + scanned + ' gescannt, ' + changes + ' Änderungen' + (errors > 0 ? ', ' + errors + ' Fehler' : '');
         this.disabled = false;
-        setTimeout(() => { progressDiv.style.display = 'none'; }, 5000);
+        setTimeout(() => { progressDiv.style.display = 'none'; }, 8000);
         loadData();
     });
-
-    document.getElementById('btnCancelScan').addEventListener('click', () => { scanCancelled = true; });
 
     // CSV Export
     document.getElementById('btnExportCsv').addEventListener('click', function() {

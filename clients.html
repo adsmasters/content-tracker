@@ -790,43 +790,6 @@
             scanBtn.disabled = true;
             scanBtn.textContent = 'Scan läuft...';
 
-            // Get client marketplace
-            const { data: clientData } = await sb
-                .from('ct_clients')
-                .select('marketplace, track_bullet_order, track_image_order, track_aplus_order')
-                .eq('id', activeClientId)
-                .single();
-
-            if (!clientData) {
-                alert('Kunde nicht gefunden.');
-                return;
-            }
-
-            // Map marketplace to RapidAPI country code
-            const marketplaceMap = { DE: 'DE', US: 'US', UK: 'GB', FR: 'FR', IT: 'IT', ES: 'ES' };
-            const country = marketplaceMap[clientData.marketplace] || clientData.marketplace;
-
-            // Get active products not scanned in last 24h
-            const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-            const { data: allProducts } = await sb
-                .from('ct_products')
-                .select('*')
-                .eq('client_id', activeClientId)
-                .eq('status', 'active');
-
-            // Filter: only scan products not scanned in last 24h
-            const products = (allProducts || []).filter(p => !p.last_scanned_at || p.last_scanned_at < yesterday);
-
-            if (!allProducts || allProducts.length === 0) {
-                alert('Keine aktiven ASINs vorhanden.');
-                return;
-            }
-
-            if (products.length === 0) {
-                alert('Alle ' + allProducts.length + ' ASINs wurden in den letzten 24h bereits gescannt.');
-                return;
-            }
-
             // Show progress overlay
             scanCancelled = false;
             const overlay = document.getElementById('scanOverlay');
@@ -834,147 +797,34 @@
             const statusEl = document.getElementById('scanStatus');
             const titleEl = document.getElementById('scanProductTitle');
             progressFill.style.width = '0%';
-            statusEl.textContent = 'Vorbereitung...';
-            titleEl.textContent = '';
+            statusEl.textContent = 'Scan wird über Edge Function ausgeführt...';
+            titleEl.textContent = 'Alle Produkte dieses Kunden werden gescannt';
             overlay.classList.add('open');
 
-            let changesCount = 0;
-            let errorCount = 0;
-            const total = products.length;
+            try {
+                const SUPABASE_URL = sb.supabaseUrl || 'https://lgrnmiszhhahfcmctmwo.supabase.co';
+                const response = await fetch(SUPABASE_URL + '/functions/v1/scan-products', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + sb.supabaseKey
+                    },
+                    body: JSON.stringify({ client_id: activeClientId })
+                });
 
-            for (let i = 0; i < total; i++) {
-                if (scanCancelled) break;
+                const result = await response.json();
+                progressFill.style.width = '100%';
 
-                const product = products[i];
-                const progress = Math.round(((i + 1) / total) * 100);
-                statusEl.textContent = 'ASIN ' + (i + 1) + '/' + total + ' — ' + product.asin;
-                titleEl.textContent = product.title || '';
-                progressFill.style.width = progress + '%';
-
-                try {
-                    // Call RapidAPI
-                    const response = await fetch(
-                        'https://real-time-amazon-data.p.rapidapi.com/product-details?asin=' + encodeURIComponent(product.asin) + '&country=' + encodeURIComponent(country),
-                        {
-                            method: 'GET',
-                            headers: {
-                                'x-rapidapi-host': 'real-time-amazon-data.p.rapidapi.com',
-                                'x-rapidapi-key': 'f8efc09e81msh6c57af2fcb726adp116390jsne4a9ac230e46'
-                            }
-                        }
-                    );
-
-                    if (!response.ok) {
-                        throw new Error('API HTTP ' + response.status);
-                    }
-
-                    const json = await response.json();
-                    const d = json.data || {};
-
-                    // Extract fields (handle null/undefined)
-                    const newTitle = d.product_title || '';
-                    const newBullets = JSON.stringify(d.about_product || []);
-                    const newImages = JSON.stringify(d.product_photos || []);
-                    const newAplus = JSON.stringify(d.aplus_images || []);
-                    const firstImage = (d.product_photos && d.product_photos.length > 0) ? d.product_photos[0] : null;
-
-                    // Fetch latest snapshot
-                    const { data: lastSnap } = await sb
-                        .from('ct_snapshots')
-                        .select('*')
-                        .eq('product_id', product.id)
-                        .order('fetched_at', { ascending: false })
-                        .limit(1);
-
-                    const prevSnapshot = (lastSnap && lastSnap.length > 0) ? lastSnap[0] : null;
-
-                    // Insert new snapshot
-                    const { data: newSnap, error: snapErr } = await sb
-                        .from('ct_snapshots')
-                        .insert({
-                            product_id: product.id,
-                            title: newTitle,
-                            bullets: newBullets,
-                            images: newImages,
-                            a_plus_html: newAplus,
-                            fetched_at: new Date().toISOString()
-                        })
-                        .select()
-                        .single();
-
-                    if (snapErr) {
-                        console.error('Snapshot insert error for ' + product.asin, snapErr);
-                        errorCount++;
-                        continue;
-                    }
-
-                    // Compare with previous snapshot and create change records
-                    if (prevSnapshot) {
-                        function normArr(arr) { return (Array.isArray(arr) ? arr : JSON.parse(arr || '[]')).map(s => String(s).trim()); }
-                        function normUrls(arr) { return normArr(arr).map(s => s.split('?')[0]); }
-                        function arrEq(a, b) { return a.length === b.length && a.every((v, i) => v === b[i]); }
-
-                        const trackOrder = !!clientData.track_bullet_order;
-                        const oldBullets = trackOrder ? normArr(prevSnapshot.bullets) : normArr(prevSnapshot.bullets).sort();
-                        const curBullets = trackOrder ? normArr(newBullets) : normArr(newBullets).sort();
-                        const trackImgOrder = !!clientData.track_image_order;
-                        const trackAplusOrder = !!clientData.track_aplus_order;
-                        const oldImages = trackImgOrder ? normUrls(prevSnapshot.images) : normUrls(prevSnapshot.images).sort();
-                        const curImages = trackImgOrder ? normUrls(newImages) : normUrls(newImages).sort();
-                        const oldAplus = trackAplusOrder ? normUrls(prevSnapshot.a_plus_html) : normUrls(prevSnapshot.a_plus_html).sort();
-                        const curAplus = trackAplusOrder ? normUrls(newAplus) : normUrls(newAplus).sort();
-
-                        const fields = [
-                            { name: 'title', changed: (prevSnapshot.title || '').trim() !== newTitle.trim(), oldVal: prevSnapshot.title || '', newVal: newTitle },
-                            { name: 'bullets', changed: !arrEq(oldBullets, curBullets), oldVal: JSON.stringify(prevSnapshot.bullets || []), newVal: newBullets },
-                            { name: 'images', changed: !arrEq(oldImages, curImages), oldVal: JSON.stringify(prevSnapshot.images || []), newVal: newImages },
-                            { name: 'a_plus', changed: !arrEq(oldAplus, curAplus), oldVal: prevSnapshot.a_plus_html || '[]', newVal: newAplus }
-                        ];
-
-                        for (const field of fields) {
-                            if (field.changed) {
-                                changesCount++;
-                                await sb.from('ct_changes').insert({
-                                    product_id: product.id,
-                                    snapshot_id: newSnap.id,
-                                    field: field.name,
-                                    old_value: field.oldVal,
-                                    new_value: field.newVal
-                                });
-                            }
-                        }
-                    }
-
-                    // Update product record
-                    await sb.from('ct_products').update({
-                        title: newTitle,
-                        image_url: firstImage,
-                        last_scanned_at: new Date().toISOString()
-                    }).eq('id', product.id);
-
-                } catch (err) {
-                    console.error('Scan error for ASIN ' + product.asin + ':', err);
-                    errorCount++;
-                }
-
-                // Rate limit delay (skip after last item)
-                if (i < total - 1 && !scanCancelled) {
-                    await new Promise(resolve => setTimeout(resolve, 1500));
-                }
+                overlay.classList.remove('open');
+                showToast('Scan abgeschlossen. ' + (result.scanned || 0) + ' ASINs gescannt, ' +
+                    (result.changes_found || 0) + ' Änderungen gefunden.' +
+                    (result.errors > 0 ? ' ' + result.errors + ' Fehler.' : '') +
+                    (result.skipped > 0 ? ' ' + result.skipped + ' übersprungen.' : ''));
+            } catch (err) {
+                overlay.classList.remove('open');
+                showToast('Scan fehlgeschlagen: ' + err.message);
             }
 
-            // Close overlay
-            overlay.classList.remove('open');
-
-            // Show summary toast
-            let msg = 'Scan abgeschlossen. ' + (scanCancelled ? '(Abgebrochen) ' : '') +
-                      total + ' ASINs gescannt, ' + changesCount + ' Änderungen gefunden.';
-            if (errorCount > 0) {
-                msg += ' ' + errorCount + ' Fehler.';
-            }
-            showToast(msg);
-
-            // Re-enable scan button
             scanBtn.disabled = false;
             scanBtn.textContent = 'Scan starten';
 

@@ -813,7 +813,7 @@
             container.innerHTML = html;
         }
 
-        // Single product scan
+        // Single product scan via Edge Function
         async function scanProduct() {
             const btn = document.getElementById('btnScanProduct');
             if (!btn) return;
@@ -821,49 +821,23 @@
             btn.textContent = 'Scan läuft...';
 
             try {
-                const { data: product } = await sb.from('ct_products').select('*, ct_clients(marketplace)').eq('id', productId).single();
+                // Get client_id for this product
+                const { data: product } = await sb.from('ct_products').select('client_id').eq('id', productId).single();
                 if (!product) { alert('Produkt nicht gefunden.'); return; }
 
-                const mp = (product.ct_clients?.marketplace || 'DE').toUpperCase();
-                const country = mp === 'UK' ? 'GB' : mp;
-
-                const resp = await fetch('https://real-time-amazon-data.p.rapidapi.com/product-details?asin=' + product.asin + '&country=' + country, {
-                    headers: { 'x-rapidapi-host': 'real-time-amazon-data.p.rapidapi.com', 'x-rapidapi-key': 'f8efc09e81msh6c57af2fcb726adp116390jsne4a9ac230e46' }
+                const SUPABASE_URL = sb.supabaseUrl || 'https://lgrnmiszhhahfcmctmwo.supabase.co';
+                const response = await fetch(SUPABASE_URL + '/functions/v1/scan-products', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + sb.supabaseKey
+                    },
+                    body: JSON.stringify({ client_id: product.client_id })
                 });
-                const d = (await resp.json()).data;
-                if (!d) { alert('Keine Daten von Amazon erhalten.'); return; }
 
-                const title = d.product_title || '';
-                const newBullets = JSON.stringify(d.about_product || []);
-                const newImages = JSON.stringify(d.product_photos || []);
-                const newAplus = JSON.stringify(d.aplus_images || []);
-
-                const { data: lastSnap } = await sb.from('ct_snapshots').select('*').eq('product_id', productId).order('fetched_at', { ascending: false }).limit(1);
-                const prev = lastSnap && lastSnap.length > 0 ? lastSnap[0] : null;
-
-                const { data: newSnap } = await sb.from('ct_snapshots').insert({
-                    product_id: productId, title, bullets: d.about_product || [], images: d.product_photos || [], a_plus_html: newAplus
-                }).select('id').single();
-
-                let changes = 0;
-                if (prev && newSnap) {
-                    const fields = [
-                        { name: 'title', oldVal: prev.title || '', newVal: title },
-                        { name: 'bullets', oldVal: JSON.stringify(prev.bullets || []), newVal: newBullets },
-                        { name: 'images', oldVal: JSON.stringify(prev.images || []), newVal: newImages },
-                        { name: 'a_plus', oldVal: prev.a_plus_html || '[]', newVal: newAplus }
-                    ];
-                    for (const f of fields) {
-                        if (f.oldVal !== f.newVal) {
-                            await sb.from('ct_changes').insert({ product_id: productId, snapshot_id: newSnap.id, field: f.name, old_value: f.oldVal, new_value: f.newVal });
-                            changes++;
-                        }
-                    }
-                }
-
-                await sb.from('ct_products').update({ title, image_url: (d.product_photos || [])[0] || null, last_scanned_at: new Date().toISOString() }).eq('id', productId);
-
-                alert('Scan abgeschlossen. ' + changes + ' Änderung' + (changes !== 1 ? 'en' : '') + ' erkannt.');
+                const result = await response.json();
+                alert('Scan abgeschlossen. ' + (result.scanned || 0) + ' ASIN(s) gescannt, ' +
+                    (result.changes_found || 0) + ' Änderung(en) erkannt.');
                 location.reload();
             } catch (e) {
                 alert('Scan fehlgeschlagen: ' + e.message);
