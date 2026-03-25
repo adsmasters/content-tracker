@@ -505,6 +505,13 @@
                 <option value="IT">IT</option>
                 <option value="ES">ES</option>
             </select>
+            <label for="clientScanInterval" style="margin-top:8px;">Scan-Intervall</label>
+            <select id="clientScanInterval">
+                <option value="1" selected>Täglich</option>
+                <option value="2">Alle 2 Tage</option>
+                <option value="3">Alle 3 Tage</option>
+                <option value="7">Wöchentlich</option>
+            </select>
             <label for="clientRetention" style="margin-top:8px;">Änderungen aufbewahren</label>
             <select id="clientRetention">
                 <option value="14">14 Tage</option>
@@ -660,7 +667,7 @@
                     '<td>' + s.count + '</td>' +
                     '<td>' + lastScan + '</td>' +
                     '<td class="actions-cell">' +
-                        '<button class="btn-sm" onclick="editClient(\'' + c.id + '\',\'' + escAttr(c.name) + '\',\'' + escAttr(c.marketplace) + '\',' + (c.retention_days || 30) + ',' + (c.track_bullet_order ? 'true' : 'false') + ',' + (c.track_image_order ? 'true' : 'false') + ',' + (c.track_aplus_order ? 'true' : 'false') + ')">Bearbeiten</button>' +
+                        '<button class="btn-sm" onclick="editClient(\'' + c.id + '\',\'' + escAttr(c.name) + '\',\'' + escAttr(c.marketplace) + '\',' + (c.retention_days || 30) + ',' + (c.scan_interval_days || 1) + ',' + (c.track_bullet_order ? 'true' : 'false') + ',' + (c.track_image_order ? 'true' : 'false') + ',' + (c.track_aplus_order ? 'true' : 'false') + ')">Bearbeiten</button>' +
                         '<button class="btn-sm danger" onclick="deleteClient(\'' + c.id + '\',\'' + escAttr(c.name) + '\')">Löschen</button>' +
                     '</td>' +
                     '</tr>';
@@ -697,6 +704,7 @@
             const name = document.getElementById('clientName').value.trim();
             const marketplace = document.getElementById('clientMarketplace').value;
             const retention_days = parseInt(document.getElementById('clientRetention').value) || 30;
+            const scan_interval_days = parseInt(document.getElementById('clientScanInterval').value) || 1;
             const track_bullet_order = document.getElementById('clientTrackBulletOrder').checked;
             const track_image_order = document.getElementById('clientTrackImageOrder').checked;
             const track_aplus_order = document.getElementById('clientTrackAplusOrder').checked;
@@ -709,14 +717,14 @@
             }
 
             if (editingClientId) {
-                const { error } = await sb.from('ct_clients').update({ name, marketplace, retention_days, track_bullet_order, track_image_order, track_aplus_order }).eq('id', editingClientId);
+                const { error } = await sb.from('ct_clients').update({ name, marketplace, retention_days, scan_interval_days, track_bullet_order, track_image_order, track_aplus_order }).eq('id', editingClientId);
                 if (error) {
                     errEl.textContent = 'Fehler: ' + error.message;
                     errEl.style.display = 'block';
                     return;
                 }
             } else {
-                const { error } = await sb.from('ct_clients').insert({ name, marketplace, retention_days, track_bullet_order, track_image_order, track_aplus_order });
+                const { error } = await sb.from('ct_clients').insert({ name, marketplace, retention_days, scan_interval_days, track_bullet_order, track_image_order, track_aplus_order });
                 if (error) {
                     errEl.textContent = 'Fehler: ' + error.message;
                     errEl.style.display = 'block';
@@ -728,11 +736,12 @@
             loadClients();
         });
 
-        window.editClient = function(id, name, marketplace, retentionDays, trackBulletOrder, trackImageOrder, trackAplusOrder) {
+        window.editClient = function(id, name, marketplace, retentionDays, scanIntervalDays, trackBulletOrder, trackImageOrder, trackAplusOrder) {
             editingClientId = id;
             document.getElementById('modalClientTitle').textContent = 'Kunde bearbeiten';
             document.getElementById('clientName').value = name;
             document.getElementById('clientMarketplace').value = marketplace;
+            document.getElementById('clientScanInterval').value = String(scanIntervalDays || 1);
             document.getElementById('clientRetention').value = String(retentionDays || 30);
             document.getElementById('clientTrackBulletOrder').checked = !!trackBulletOrder;
             document.getElementById('clientTrackImageOrder').checked = !!trackImageOrder;
