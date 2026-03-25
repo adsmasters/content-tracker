@@ -1033,6 +1033,14 @@
                 showToast(newAsins.length + ' ASINs hinzugefügt, ' + skipped + ' Duplikate übersprungen.');
             }
             loadAsins();
+
+            // Hinweis: Initialer Scan nötig
+            if (newAsins.length > 0) {
+                const doScan = confirm(newAsins.length + ' ASINs hinzugefügt.\n\nWichtig: Neue Produkte müssen einmal gescannt werden, bevor Änderungen erkannt werden können.\n\nJetzt scannen?');
+                if (doScan) {
+                    document.getElementById('btnScan').click();
+                }
+            }
         });
 
         window.toggleStatus = async function(id, currentStatus) {
