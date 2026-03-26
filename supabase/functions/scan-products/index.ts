@@ -14,6 +14,7 @@ Deno.serve(async (req: Request) => {
     const RAPIDAPI_KEY = Deno.env.get("RAPIDAPI_KEY");
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY") || "";
     const SLACK_BOT_TOKEN = Deno.env.get("SLACK_BOT_TOKEN") || "";
 
     if (!RAPIDAPI_KEY || !SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
@@ -323,7 +324,7 @@ Deno.serve(async (req: Request) => {
           const chainResp = await fetch(`${SUPABASE_URL}/functions/v1/scan-products`, {
             method: "POST",
             headers: {
-              "Authorization": `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+              "Authorization": `Bearer ${SUPABASE_ANON_KEY || SUPABASE_SERVICE_ROLE_KEY}`,
               "Content-Type": "application/json",
             },
             body: JSON.stringify({ client_id: remainingClients[0], remaining: remainingClients.slice(1) }),
