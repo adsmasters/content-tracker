@@ -30,10 +30,12 @@ Deno.serve(async (req: Request) => {
     // Parse params
     let clientId: string | null = null;
     let scanAll = false;
+    let batchSize = 0; // 0 = unlimited
     try {
       const body = await req.json();
       clientId = body.client_id || null;
       scanAll = body.scan_all === true;
+      batchSize = parseInt(body.batch_size) || 0;
     } catch { /* defaults */ }
 
     // Load all clients
@@ -95,7 +97,7 @@ Deno.serve(async (req: Request) => {
 
     // Filter products based on scan_interval_days
     const now = Date.now();
-    const products = (allProducts || []).filter((p: any) => {
+    let products = (allProducts || []).filter((p: any) => {
       const client = clientMap[p.client_id];
       if (!client) return false;
       const intervalDays = client.scan_interval_days || 1;
@@ -104,6 +106,12 @@ Deno.serve(async (req: Request) => {
       const intervalMs = intervalDays * 24 * 60 * 60 * 1000;
       return (now - lastScan) >= (intervalMs - 2 * 60 * 60 * 1000);
     });
+
+    // Limit to batch size if specified
+    const totalDue = products.length;
+    if (batchSize > 0 && products.length > batchSize) {
+      products = products.slice(0, batchSize);
+    }
 
     // Helper functions
     function toArray(val: any): any[] {
@@ -312,7 +320,7 @@ Deno.serve(async (req: Request) => {
         changes_found: changesFound,
         errors,
         total: (allProducts || []).length,
-        remaining_clients: 0,
+        remaining_products: totalDue - products.length,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
