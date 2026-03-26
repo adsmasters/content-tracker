@@ -14,7 +14,6 @@ Deno.serve(async (req: Request) => {
     const RAPIDAPI_KEY = Deno.env.get("RAPIDAPI_KEY");
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-    const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY") || "";
     const SLACK_BOT_TOKEN = Deno.env.get("SLACK_BOT_TOKEN") || "";
 
     if (!RAPIDAPI_KEY || !SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
@@ -31,7 +30,6 @@ Deno.serve(async (req: Request) => {
     // Parse params
     let clientId: string | null = null;
     let scanAll = false;
-    let scanAllRemaining: string[] = [];
     try {
       const body = await req.json();
       clientId = body.client_id || null;
@@ -75,20 +73,10 @@ Deno.serve(async (req: Request) => {
         });
       }
 
-      // Scan first due client, pass rest as remaining
-      clientId = dueClients[0];
-      // Store remaining for chain trigger at end
-      scanAllRemaining = dueClients.slice(1);
+      // Scan all due clients in one run - no chain needed
+      clientId = null;
     }
 
-    // Handle chain: remaining clients from scan_all or from previous chain call
-    let remainingClients: string[] = scanAllRemaining;
-    if (remainingClients.length === 0) {
-      try {
-        const body = JSON.parse(await req.clone().text());
-        remainingClients = body.remaining || [];
-      } catch { /* ignore */ }
-    }
 
     // Build client map
     const clientMap: Record<string, any> = {};
@@ -316,31 +304,6 @@ Deno.serve(async (req: Request) => {
       console.error("Cleanup error:", e);
     }
 
-    // Trigger next client in chain if remaining
-    if (remainingClients.length > 0) {
-      let chainSuccess = false;
-      for (let retry = 0; retry < 3; retry++) {
-        try {
-          const chainResp = await fetch(`${SUPABASE_URL}/functions/v1/scan-products`, {
-            method: "POST",
-            headers: {
-              "Authorization": `Bearer ${SUPABASE_ANON_KEY || SUPABASE_SERVICE_ROLE_KEY}`,
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({ client_id: remainingClients[0], remaining: remainingClients.slice(1) }),
-          });
-          if (chainResp.ok) { chainSuccess = true; break; }
-          console.error(`Chain trigger attempt ${retry + 1} failed: ${chainResp.status}`);
-        } catch (e) {
-          console.error(`Chain trigger attempt ${retry + 1} error:`, e);
-        }
-        await new Promise((r) => setTimeout(r, 2000));
-      }
-      if (!chainSuccess) {
-        console.error(`CRITICAL: Failed to trigger scan for remaining ${remainingClients.length} clients after 3 retries`);
-      }
-    }
-
     return new Response(
       JSON.stringify({
         client: clientId ? (clientMap[clientId]?.name || clientId) : "all",
@@ -349,7 +312,7 @@ Deno.serve(async (req: Request) => {
         changes_found: changesFound,
         errors,
         total: (allProducts || []).length,
-        remaining_clients: remainingClients.length,
+        remaining_clients: 0,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
