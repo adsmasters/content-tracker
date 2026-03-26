@@ -471,7 +471,7 @@
 
         // Field filter
         if (filterField) {
-            query = query.eq('field_changed', filterField);
+            query = query.eq('field', filterField);
         }
 
         // Time filter
@@ -538,7 +538,7 @@
         slice.forEach(([pid, group]) => {
             const product = productsMap[pid] || {};
             const client = clientsMap[product.client_id] || {};
-            const fields = [...new Set(group.changes.map(c => c.field_changed || c.field))];
+            const fields = [...new Set(group.changes.map(c => c.field))];
 
             const imgHtml = product.image_url
                 ? '<img class="change-img" src="' + escapeHtml(product.image_url) + '" alt="">'
