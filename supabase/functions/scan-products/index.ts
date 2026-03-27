@@ -5,6 +5,7 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+const VERSION = "v3-today-check";
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -101,21 +102,29 @@ Deno.serve(async (req: Request) => {
     }
 
     // Filter products: check if scanned today (UTC) based on interval
+    // If specific client_id was passed, skip interval check entirely
     const now = new Date();
-    let products = (allProducts || []).filter((p: any) => {
-      const client = clientMap[p.client_id];
-      if (!client) return false;
-      const intervalDays = client.scan_interval_days || 1;
-      if (!p.last_scanned_at) return true;
-      const lastScan = new Date(p.last_scanned_at);
-      // For daily scans (interval=1): not scanned today = due
-      // For multi-day intervals: check if enough days have passed
-      if (intervalDays <= 1) {
-        return lastScan.toISOString().slice(0, 10) !== now.toISOString().slice(0, 10);
-      }
-      const daysDiff = (now.getTime() - lastScan.getTime()) / (24 * 60 * 60 * 1000);
-      return daysDiff >= intervalDays - 0.5;
-    });
+    const todayUTC = now.toISOString().slice(0, 10);
+    let products: any[];
+    if (clientId) {
+      // Direct client scan: scan all products not yet scanned today
+      products = (allProducts || []).filter((p: any) => {
+        if (!p.last_scanned_at) return true;
+        const lastDate = new Date(p.last_scanned_at).toISOString().slice(0, 10);
+        return lastDate !== todayUTC;
+      });
+    } else {
+      products = (allProducts || []).filter((p: any) => {
+        const client = clientMap[p.client_id];
+        if (!client) return false;
+        const intervalDays = client.scan_interval_days || 1;
+        if (!p.last_scanned_at) return true;
+        const lastDate = new Date(p.last_scanned_at).toISOString().slice(0, 10);
+        if (intervalDays <= 1) return lastDate !== todayUTC;
+        const daysDiff = (now.getTime() - new Date(p.last_scanned_at).getTime()) / (24 * 60 * 60 * 1000);
+        return daysDiff >= intervalDays - 0.5;
+      });
+    }
 
     // Limit to batch size if specified
     const totalDue = products.length;
@@ -331,6 +340,7 @@ Deno.serve(async (req: Request) => {
         errors,
         total: (allProducts || []).length,
         remaining_products: totalDue - products.length,
+        version: VERSION,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
