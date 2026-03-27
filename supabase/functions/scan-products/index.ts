@@ -49,11 +49,12 @@ Deno.serve(async (req: Request) => {
     // If scan_all: find next client that needs scanning and scan only that one
     // Then trigger self again for the next client
     if (scanAll && !clientId) {
-      const now = Date.now();
+      const now = new Date();
+      const todayStr = now.toISOString().slice(0, 10);
       // Find clients that need scanning: check their products' last_scanned_at
       const dueClients: string[] = [];
       for (const c of (allClients || [])) {
-        const intervalMs = (c.scan_interval_days || 1) * 24 * 60 * 60 * 1000;
+        const intervalDays = c.scan_interval_days || 1;
         const { data: oldestProduct } = await sb
           .from("ct_products")
           .select("last_scanned_at")
@@ -62,9 +63,13 @@ Deno.serve(async (req: Request) => {
           .order("last_scanned_at", { ascending: true, nullsFirst: true })
           .limit(1);
         if (oldestProduct && oldestProduct.length > 0) {
-          const lastScan = oldestProduct[0].last_scanned_at ? new Date(oldestProduct[0].last_scanned_at).getTime() : 0;
-          if ((now - lastScan) >= (intervalMs - 2 * 60 * 60 * 1000)) {
-            dueClients.push(c.id);
+          const lastScanStr = oldestProduct[0].last_scanned_at ? new Date(oldestProduct[0].last_scanned_at).toISOString().slice(0, 10) : '';
+          if (intervalDays <= 1) {
+            if (lastScanStr !== todayStr) dueClients.push(c.id);
+          } else {
+            const lastScan = oldestProduct[0].last_scanned_at ? new Date(oldestProduct[0].last_scanned_at).getTime() : 0;
+            const daysDiff = (now.getTime() - lastScan) / (24 * 60 * 60 * 1000);
+            if (daysDiff >= intervalDays - 0.5) dueClients.push(c.id);
           }
         }
       }
@@ -95,16 +100,21 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    // Filter products based on scan_interval_days
-    const now = Date.now();
+    // Filter products: check if scanned today (UTC) based on interval
+    const now = new Date();
     let products = (allProducts || []).filter((p: any) => {
       const client = clientMap[p.client_id];
       if (!client) return false;
       const intervalDays = client.scan_interval_days || 1;
       if (!p.last_scanned_at) return true;
-      const lastScan = new Date(p.last_scanned_at).getTime();
-      const intervalMs = intervalDays * 24 * 60 * 60 * 1000;
-      return (now - lastScan) >= (intervalMs - 2 * 60 * 60 * 1000);
+      const lastScan = new Date(p.last_scanned_at);
+      // For daily scans (interval=1): not scanned today = due
+      // For multi-day intervals: check if enough days have passed
+      if (intervalDays <= 1) {
+        return lastScan.toISOString().slice(0, 10) !== now.toISOString().slice(0, 10);
+      }
+      const daysDiff = (now.getTime() - lastScan.getTime()) / (24 * 60 * 60 * 1000);
+      return daysDiff >= intervalDays - 0.5;
     });
 
     // Limit to batch size if specified
